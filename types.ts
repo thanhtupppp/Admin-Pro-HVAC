@@ -16,9 +16,11 @@ export enum ViewType {
 export interface SystemVersion {
   version: string;
   releaseDate: string;
-  notes: string[];
-  type: 'stable' | 'beta' | 'security';
-  size: string;
+  changes?: string[];
+  notes?: string[];
+  type?: 'stable' | 'beta' | 'security';
+  size?: string;
+  isCritical?: boolean;
 }
 
 export interface ToastMessage {

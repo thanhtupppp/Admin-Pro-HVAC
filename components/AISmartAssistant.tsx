@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithAI } from './AIService';
 
@@ -20,12 +19,22 @@ const AISmartAssistant: React.FC = () => {
     const userMsg = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    
+
     // Add thinking state
     setMessages(prev => [...prev, { role: 'ai', text: 'Đang phân tích sâu câu hỏi của bạn...', isThinking: true }]);
 
     try {
-      const result = await chatWithAI(userMsg);
+      // Map history for API
+      const history = messages
+        .filter(m => !m.isThinking)
+        .map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.text }]
+        } as any)); // Cast because exact type might differ slightly in strict checks
+
+      // In a real app, 'Dashboard Admin' would come from some global context hook
+      const result = await chatWithAI(userMsg, history, 'Dashboard Admin');
+
       setMessages(prev => prev.filter(m => !m.isThinking).concat({ role: 'ai', text: result || 'Không có phản hồi' }));
     } catch (error) {
       setMessages(prev => prev.filter(m => !m.isThinking).concat({ role: 'ai', text: 'Lỗi: Không thể kết nối với AI.' }));
@@ -45,7 +54,7 @@ const AISmartAssistant: React.FC = () => {
               <span className="material-symbols-outlined">close</span>
             </button>
           </div>
-          
+
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll bg-background-dark/50">
             {messages.length === 0 && (
               <div className="text-center py-10">
@@ -57,11 +66,10 @@ const AISmartAssistant: React.FC = () => {
             )}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${
-                  m.role === 'user' 
-                  ? 'bg-primary text-white rounded-tr-none shadow-lg' 
-                  : 'bg-surface-dark border border-border-dark text-gray-300 rounded-tl-none'
-                }`}>
+                <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${m.role === 'user'
+                    ? 'bg-primary text-white rounded-tr-none shadow-lg'
+                    : 'bg-surface-dark border border-border-dark text-gray-300 rounded-tl-none'
+                  }`}>
                   {m.isThinking && (
                     <div className="flex items-center gap-2 mb-1">
                       <div className="flex gap-1">
@@ -80,15 +88,15 @@ const AISmartAssistant: React.FC = () => {
 
           <div className="p-4 bg-background-dark border-t border-border-dark/30">
             <div className="relative">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Nhập yêu cầu phân tích..."
                 className="w-full bg-surface-dark border-border-dark rounded-xl pl-4 pr-12 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary transition-all"
               />
-              <button 
+              <button
                 onClick={handleSend}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center hover:bg-primary-hover transition-colors"
               >
@@ -98,7 +106,7 @@ const AISmartAssistant: React.FC = () => {
           </div>
         </div>
       ) : (
-        <button 
+        <button
           onClick={() => setIsOpen(true)}
           className="w-14 h-14 bg-primary text-white rounded-full shadow-2xl shadow-primary/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all group relative"
         >

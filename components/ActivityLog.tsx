@@ -1,13 +1,30 @@
-
-import React, { useState } from 'react';
-import { MOCK_LOGS } from '../constants';
+import React, { useState, useEffect } from 'react';
+import { systemService } from '../services/systemService';
+import { ActivityEntry } from '../types';
 
 const ActivityLog: React.FC = () => {
+  const [logs, setLogs] = useState<ActivityEntry[]>([]);
   const [filter, setFilter] = useState('ALL');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredLogs = filter === 'ALL' 
-    ? MOCK_LOGS 
-    : MOCK_LOGS.filter(l => l.action === filter);
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setIsLoading(true);
+      try {
+        const data = await systemService.getLogs();
+        setLogs(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLogs();
+  }, []);
+
+  const filteredLogs = filter === 'ALL'
+    ? logs
+    : logs.filter(l => l.action === filter);
 
   const getActionColor = (action: string) => {
     switch (action) {
@@ -30,8 +47,12 @@ const ActivityLog: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return <div className="p-8 text-center text-text-secondary">Đang tải nhật ký...</div>;
+  }
+
   return (
-    <div className="p-4 lg:p-8 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 lg:p-8 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Nhật ký hoạt động</h1>
@@ -42,9 +63,8 @@ const ActivityLog: React.FC = () => {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${
-                filter === f ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'
-              }`}
+              className={`px-4 py-2 text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${filter === f ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'
+                }`}
             >
               {f === 'ALL' ? 'Tất cả' : f}
             </button>
@@ -60,7 +80,7 @@ const ActivityLog: React.FC = () => {
                 {getActionIcon(log.action)}
               </span>
             </div>
-            
+
             <div className="bg-surface-dark border border-border-dark/30 rounded-2xl p-5 hover:border-primary/20 transition-all shadow-xl shadow-black/5">
               <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
                 <div className="flex items-center gap-2">
@@ -83,9 +103,9 @@ const ActivityLog: React.FC = () => {
         ))}
 
         <div className="text-center pt-8">
-           <button className="px-6 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-border-dark transition-all">
-              Tải thêm dữ liệu lịch sử
-           </button>
+          <button className="px-6 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-border-dark transition-all">
+            Tải thêm dữ liệu lịch sử
+          </button>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
+import { paymentService, Plan } from '../services/paymentService';
+// We might want to use userService for metrics in the future, but for now focus on Plans.
 
 interface PaymentInfo {
   planName: string;
@@ -9,8 +10,18 @@ interface PaymentInfo {
 
 const PlanManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState('plans');
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [showPayment, setShowPayment] = useState<PaymentInfo | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'waiting' | 'verifying' | 'success'>('waiting');
+
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  const loadPlans = async () => {
+    const data = await paymentService.getPlans();
+    setPlans(data);
+  };
 
   // Thông tin ngân hàng cấu hình (Demo)
   const BANK_CONFIG = {
@@ -26,15 +37,29 @@ const PlanManager: React.FC = () => {
     setPaymentStatus('waiting');
   };
 
-  const simulateVerify = () => {
+  const handleConfirmPayment = async () => {
+    if (!showPayment) return;
     setPaymentStatus('verifying');
-    setTimeout(() => {
+
+    // Call service to record transaction
+    try {
+      await paymentService.createTransaction({
+        userId: 'current-admin', // TODO: Get from auth context
+        planId: showPayment.planName,
+        amount: showPayment.price,
+        status: 'completed',
+        method: 'bank_transfer',
+        description: showPayment.description
+      });
       setPaymentStatus('success');
-    }, 3000);
+    } catch (e) {
+      console.error(e);
+      setPaymentStatus('waiting'); // Retry?
+    }
   };
 
-  // URL VietQR: https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<TEMPLATE>.png?amount=<AMOUNT>&addInfo=<DESCRIPTION>&accountName=<NAME>
-  const qrUrl = showPayment 
+  // URL VietQR
+  const qrUrl = showPayment
     ? `https://img.vietqr.io/image/${BANK_CONFIG.ID}-${BANK_CONFIG.ACCOUNT_NO}-${BANK_CONFIG.TEMPLATE}.png?amount=${showPayment.price}&addInfo=${encodeURIComponent(showPayment.description)}&accountName=${encodeURIComponent(BANK_CONFIG.ACCOUNT_NAME)}`
     : '';
 
@@ -46,13 +71,13 @@ const PlanManager: React.FC = () => {
           <p className="text-text-secondary text-sm">Cấu hình giá cả và quyền hạn cho người dùng ứng dụng</p>
         </div>
         <div className="flex bg-surface-dark border border-border-dark p-1 rounded-xl">
-          <button 
+          <button
             onClick={() => setActiveTab('plans')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'plans' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
           >
             Danh sách gói
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('coupons')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'coupons' ? 'bg-primary text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
           >
@@ -85,10 +110,17 @@ const PlanManager: React.FC = () => {
 
       {/* Plan Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Render Plans Dynamically or Keep Static Layout for Better UI Control? 
+            Let's iterate plans but keep the nice layout logic. 
+            For now, I'll match the previous hardcoded layout but use data where applicable or fallback to the static nice UI 
+            because the MOCK_PLANS are simple. 
+            Actually, the previous UI was very custom for Free/Premium. Let's keep it but wire the button.
+        */}
+
         {/* FREE PLAN */}
         <div className="bg-surface-dark border-2 border-border-dark/30 rounded-3xl p-8 relative overflow-hidden group hover:border-white/10 transition-all">
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-             <span className="material-symbols-outlined text-[120px]">eco</span>
+            <span className="material-symbols-outlined text-[120px]">eco</span>
           </div>
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-6">
@@ -98,7 +130,7 @@ const PlanManager: React.FC = () => {
               </div>
               <span className="bg-white/5 border border-border-dark text-[10px] font-bold px-3 py-1 rounded-full text-white uppercase tracking-wider">Mặc định</span>
             </div>
-            
+
             <div className="mb-8">
               <span className="text-4xl font-bold text-white">0₫</span>
               <span className="text-text-secondary text-sm"> / vĩnh viễn</span>
@@ -131,7 +163,7 @@ const PlanManager: React.FC = () => {
         {/* PREMIUM PLAN */}
         <div className="bg-surface-dark border-2 border-primary/50 rounded-3xl p-8 relative overflow-hidden group hover:border-primary transition-all shadow-2xl shadow-primary/5">
           <div className="absolute top-0 right-0 p-8 text-primary opacity-10 group-hover:scale-110 transition-transform">
-             <span className="material-symbols-outlined text-[120px]">workspace_premium</span>
+            <span className="material-symbols-outlined text-[120px]">workspace_premium</span>
           </div>
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-6">
@@ -141,7 +173,7 @@ const PlanManager: React.FC = () => {
               </div>
               <span className="bg-primary/20 border border-primary/30 text-[10px] font-bold px-3 py-1 rounded-full text-primary uppercase tracking-wider">Phổ biến nhất</span>
             </div>
-            
+
             <div className="mb-8 flex items-baseline gap-2">
               <span className="text-4xl font-bold text-white">199.000₫</span>
               <span className="text-text-secondary text-sm"> / tháng</span>
@@ -164,7 +196,7 @@ const PlanManager: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <button 
+              <button
                 onClick={() => handleOpenPayment('Premium', 199000)}
                 className="py-4 bg-primary hover:bg-primary-hover rounded-2xl text-white font-bold text-sm shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2"
               >
@@ -221,19 +253,19 @@ const PlanManager: React.FC = () => {
                       <div>
                         <p className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mb-1">Tài khoản thụ hưởng</p>
                         <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                           <span className="text-xs text-white font-mono">{BANK_CONFIG.ACCOUNT_NO}</span>
-                           <button onClick={() => navigator.clipboard.writeText(BANK_CONFIG.ACCOUNT_NO)} className="text-primary hover:scale-110 transition-transform">
-                              <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                           </button>
+                          <span className="text-xs text-white font-mono">{BANK_CONFIG.ACCOUNT_NO}</span>
+                          <button onClick={() => navigator.clipboard.writeText(BANK_CONFIG.ACCOUNT_NO)} className="text-primary hover:scale-110 transition-transform">
+                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                          </button>
                         </div>
                       </div>
                       <div>
                         <p className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mb-1">Nội dung chuyển khoản</p>
                         <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                           <span className="text-xs text-amber-400 font-mono font-bold">{showPayment.description}</span>
-                           <button onClick={() => navigator.clipboard.writeText(showPayment.description)} className="text-primary hover:scale-110 transition-transform">
-                              <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                           </button>
+                          <span className="text-xs text-amber-400 font-mono font-bold">{showPayment.description}</span>
+                          <button onClick={() => navigator.clipboard.writeText(showPayment.description)} className="text-primary hover:scale-110 transition-transform">
+                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -241,28 +273,28 @@ const PlanManager: React.FC = () => {
                 </div>
 
                 <div className="mt-8 space-y-3">
-                   {paymentStatus === 'waiting' && (
-                     <button 
-                      onClick={simulateVerify}
+                  {paymentStatus === 'waiting' && (
+                    <button
+                      onClick={handleConfirmPayment}
                       className="w-full py-4 bg-primary hover:bg-primary-hover text-white font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2"
-                     >
-                        Tôi đã chuyển khoản xong
-                     </button>
-                   )}
-                   {paymentStatus === 'verifying' && (
-                     <div className="w-full py-4 bg-white/5 border border-primary/30 text-primary font-bold rounded-2xl flex items-center justify-center gap-3">
-                        <span className="material-symbols-outlined animate-spin">sync</span>
-                        Đang xác thực giao dịch...
-                     </div>
-                   )}
-                   {paymentStatus === 'success' && (
-                     <div className="w-full py-4 bg-green-500/10 border border-green-500/30 text-green-500 font-bold rounded-2xl flex items-center justify-center gap-3 animate-in zoom-in-95">
-                        <span className="material-symbols-outlined">verified</span>
-                        Nâng cấp thành công!
-                        <button onClick={() => setShowPayment(null)} className="ml-2 underline text-[10px]">Đóng</button>
-                     </div>
-                   )}
-                   <p className="text-center text-[9px] text-text-secondary italic">Hệ thống sẽ tự động kích hoạt sau khi nhận được tiền.</p>
+                    >
+                      Tôi đã chuyển khoản xong
+                    </button>
+                  )}
+                  {paymentStatus === 'verifying' && (
+                    <div className="w-full py-4 bg-white/5 border border-primary/30 text-primary font-bold rounded-2xl flex items-center justify-center gap-3">
+                      <span className="material-symbols-outlined animate-spin">sync</span>
+                      Đang xác thực giao dịch...
+                    </div>
+                  )}
+                  {paymentStatus === 'success' && (
+                    <div className="w-full py-4 bg-green-500/10 border border-green-500/30 text-green-500 font-bold rounded-2xl flex items-center justify-center gap-3 animate-in zoom-in-95">
+                      <span className="material-symbols-outlined">verified</span>
+                      Nâng cấp thành công!
+                      <button onClick={() => setShowPayment(null)} className="ml-2 underline text-[10px]">Đóng</button>
+                    </div>
+                  )}
+                  <p className="text-center text-[9px] text-text-secondary italic">Hệ thống sẽ tự động kích hoạt sau khi nhận được tiền.</p>
                 </div>
               </div>
             </div>

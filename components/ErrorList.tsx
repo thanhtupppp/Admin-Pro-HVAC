@@ -1,7 +1,6 @@
-
-import React, { useState, useMemo, useRef } from 'react';
-import { MOCK_ERRORS } from '../constants';
-import { ViewType } from '../types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { errorService } from '../services/errorService';
+import { ErrorCode } from '../types';
 
 interface ErrorListProps {
   onEdit: (id: string) => void;
@@ -15,40 +14,47 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
   const [scrollTop, setScrollTop] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
+  const [errors, setErrors] = useState<ErrorCode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Giả lập dữ liệu lớn với đầy đủ thông tin chi tiết
-  const largeDataset = useMemo(() => {
-    const brands = ['Panasonic', 'Daikin', 'Samsung', 'LG', 'Toshiba', 'Mitsubishi'];
-    const codes = ['E1', 'U4', 'H11', 'F95', 'P10', 'CH05', 'A6', 'L5', 'C4', 'E7'];
-    
-    return Array.from({ length: 1000 }).map((_, i) => ({
-      ...MOCK_ERRORS[i % MOCK_ERRORS.length],
-      id: `virtual-${i}`,
-      code: `${codes[i % codes.length]}-${(i + 100).toString().slice(-2)}`,
-      brand: brands[i % brands.length],
-      updatedAt: `2023-11-${(i % 30 + 1).toString().padStart(2, '0')}`,
-      symptom: 'Máy nén không khởi động, quạt dàn lạnh vẫn chạy nhưng không thổi ra hơi lạnh. Đèn báo lỗi nháy 2 lần mỗi chu kỳ.',
-      cause: 'Hỏng tụ khởi động máy nén hoặc lỗi cảm biến dòng tải (CT) trên bo mạch công suất dàn nóng.',
-      components: ['Tụ quạt 3.5uF', 'Cảm biến nhiệt đầu đẩy', 'Bo mạch Inverter'],
-      steps: [
-        'Ngắt nguồn điện trong 5 phút để xả tụ.',
-        'Sử dụng đồng hồ đo điện trở cuộn dây máy nén (Common-Run-Start).',
-        'Kiểm tra điện áp cấp từ bo mạch ra máy nén khi khởi động.'
-      ]
-    }));
+  useEffect(() => {
+    loadErrors();
   }, []);
 
+  const loadErrors = async () => {
+    setIsLoading(true);
+    try {
+      const data = await errorService.getErrors();
+      // Simulate large dataset if needed, or just use what we have. 
+      // The original code generated 1000 items from mock.
+      // If we want to keep the "Large Dataset" feel, we might need to replicate that logic 
+      // or assume the service returns enough data.
+      // For now, let's just use the service data directly. 
+      // If the user wants 1000 items, the service should eventually provide pagination or 1000 items.
+      setErrors(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // The original component generated a large mocked dataset locally.
+  // To keep the UI looking "full", I might want to replicate that generation or just stick to real data (which is small in mock).
+  // Let's stick to real data from service to be "correct".
+  // If the user complains about empty list, we will add more to mock service.
+
   const filteredData = useMemo(() => {
-    return largeDataset.filter(item => 
+    return errors.filter(item =>
       item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [largeDataset, searchTerm]);
+  }, [errors, searchTerm]);
 
-  const selectedError = useMemo(() => 
-    largeDataset.find(e => e.id === selectedDetailId), 
-    [selectedDetailId, largeDataset]
+  const selectedError = useMemo(() =>
+    errors.find(e => e.id === selectedDetailId),
+    [selectedDetailId, errors]
   );
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -61,6 +67,19 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
   const totalHeight = filteredData.length * ROW_HEIGHT;
   const offsetY = startIndex * ROW_HEIGHT;
 
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Bạn có chắc muốn xóa mã lỗi này?")) {
+      await errorService.deleteError(id);
+      setErrors(errors.filter(err => err.id !== id));
+      if (selectedDetailId === id) setSelectedDetailId(null);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-text-secondary">Đang tải dữ liệu lỗi...</div>;
+  }
+
   return (
     <div className="p-4 lg:p-8 h-full flex flex-col overflow-hidden relative">
       {/* Search & Actions Header */}
@@ -68,9 +87,9 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-80 group">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary material-symbols-outlined">search</span>
-            <input 
-              type="text" 
-              placeholder="Tìm trong 1,000+ mã lỗi..." 
+            <input
+              type="text"
+              placeholder="Tìm trong danh sách mã lỗi..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-surface-dark border border-border-dark rounded-xl pl-10 pr-4 py-2.5 text-white placeholder:text-text-secondary focus:ring-1 focus:ring-primary outline-none transition-all shadow-inner"
@@ -105,7 +124,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
           </table>
         </div>
 
-        <div 
+        <div
           ref={containerRef}
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto custom-scroll relative"
@@ -115,16 +134,15 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
               <table className="w-full text-left text-sm table-fixed">
                 <tbody className="divide-y divide-border-dark/10">
                   {visibleData.map((err) => (
-                    <tr 
-                      key={err.id} 
+                    <tr
+                      key={err.id}
                       onClick={() => setSelectedDetailId(err.id)}
                       className={`group hover:bg-white/[0.04] transition-colors cursor-pointer ${selectedDetailId === err.id ? 'bg-primary/5' : ''}`}
                       style={{ height: `${ROW_HEIGHT}px` }}
                     >
                       <td className="px-6 py-2 w-[15%]">
-                        <div className={`inline-flex w-10 h-10 rounded-xl items-center justify-center font-bold text-[11px] border shadow-sm ${
-                          err.severity === 'high' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                        }`}>
+                        <div className={`inline-flex w-10 h-10 rounded-xl items-center justify-center font-bold text-[11px] border shadow-sm ${err.severity === 'high' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                          }`}>
                           {err.code}
                         </div>
                       </td>
@@ -147,14 +165,14 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
                       </td>
                       <td className="px-6 py-2 w-[15%] text-right">
                         <div className="flex justify-end gap-1">
-                          <button 
+                          <button
                             onClick={(e) => { e.stopPropagation(); onEdit(err.id); }}
                             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary/10 text-text-secondary hover:text-primary transition-all"
                           >
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                           </button>
-                          <button 
-                            onClick={(e) => e.stopPropagation()}
+                          <button
+                            onClick={(e) => handleDelete(err.id, e)}
                             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-text-secondary hover:text-red-500 transition-all"
                           >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -183,8 +201,8 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
       {/* Side Detail Panel */}
       {selectedError && (
         <>
-          <div 
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity" 
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
             onClick={() => setSelectedDetailId(null)}
           />
           <div className="fixed top-0 right-0 h-screen w-full max-w-md bg-surface-dark border-l border-border-dark shadow-2xl z-50 transform transition-transform duration-300 ease-out translate-x-0">
@@ -197,10 +215,10 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
                   </div>
                   <div>
                     <h3 className="font-bold text-white leading-tight">{selectedError.brand}</h3>
-                    <p className="text-[10px] text-text-secondary uppercase tracking-widest">Thông tin chi tiết mã lỗi</p>
+                    <p className="text-xs text-text-secondary uppercase tracking-widest">Thông tin chi tiết mã lỗi</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedDetailId(null)}
                   className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 text-text-secondary hover:text-white transition-colors"
                 >
@@ -275,7 +293,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
               {/* Panel Footer */}
               <div className="p-6 border-t border-border-dark/30 bg-background-dark/30">
                 <div className="grid grid-cols-2 gap-4">
-                  <button 
+                  <button
                     onClick={() => onEdit(selectedError.id)}
                     className="flex items-center justify-center gap-2 py-3 bg-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all"
                   >
