@@ -2,8 +2,17 @@ import { db } from './firebaseConfig';
 import {
     collection,
     getDocs,
-    addDoc
+    addDoc,
+    query,
+    orderBy,
+    where,
+    doc,
+    updateDoc
 } from 'firebase/firestore';
+import { Transaction, ServicePlan } from '../types';
+import { planService } from './planService';
+import { emailService } from './emailService';
+
 
 export interface Plan {
     id: string;
@@ -14,16 +23,7 @@ export interface Plan {
     isPopular?: boolean;
 }
 
-export interface Transaction {
-    id: string;
-    userId: string;
-    planId: string;
-    amount: number;
-    status: 'pending' | 'completed' | 'failed';
-    date: string;
-    method: 'bank_transfer' | 'credit_card';
-    description: string;
-}
+
 
 export const paymentService = {
     getPlans: async (): Promise<Plan[]> => {
@@ -65,15 +65,102 @@ export const paymentService = {
             date: new Date().toISOString()
         };
         const docRef = await addDoc(collection(db, 'transactions'), newTx);
-        return { id: docRef.id, ...newTx } as Transaction;
+        const createdTx = { id: docRef.id, ...newTx } as Transaction;
+
+        if (createdTx.status === 'completed') {
+            // Send payment success email
+            // Note: createTransaction data likely has userId, but we need email/name.
+            // If the caller doesn't provide it, we might skip or fetch user here.
+            // Assuming for now simple integration or we fetch user.
+            try {
+                const { userService } = await import('./userService');
+                const users = await userService.getUsers();
+                const user = users.find(u => u.id === createdTx.userId);
+                if (user) {
+                    await emailService.sendPaymentSuccess(createdTx, user.email, user.username);
+                }
+            } catch (e) {
+                console.warn('Auto-email payment success failed:', e);
+            }
+        }
+
+        return createdTx;
     },
 
     getTransactions: async (): Promise<Transaction[]> => {
-        const querySnapshot = await getDocs(collection(db, 'transactions'));
-        const txs: Transaction[] = [];
-        querySnapshot.forEach((doc) => {
-            txs.push({ id: doc.id, ...doc.data() } as Transaction);
-        });
-        return txs;
+        try {
+            const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+            const querySnapshot = await getDocs(q);
+            const txs: Transaction[] = [];
+            querySnapshot.forEach((doc) => {
+                txs.push({ id: doc.id, ...doc.data() } as Transaction);
+            });
+            return txs;
+        } catch (e) {
+            console.error('Failed to get transactions', e);
+            return [];
+        }
+    },
+
+    /**
+     * Filter transactions by status
+     */
+    getTransactionsByStatus: async (status: Transaction['status']): Promise<Transaction[]> => {
+        try {
+            const q = query(
+                collection(db, 'transactions'),
+                where('status', '==', status),
+                orderBy('date', 'desc')
+            );
+            const querySnapshot = await getDocs(q);
+            const txs: Transaction[] = [];
+            querySnapshot.forEach((doc) => {
+                txs.push({ id: doc.id, ...doc.data() } as Transaction);
+            });
+            return txs;
+        } catch (e) {
+            console.error('Failed to get transactions by status', e);
+            return [];
+        }
+    },
+
+    /**
+     * Update transaction status (Admin confirm/reject)
+     */
+    updateTransactionStatus: async (id: string, status: Transaction['status']): Promise<void> => {
+        const docRef = doc(db, 'transactions', id);
+        await updateDoc(docRef, { status });
+    },
+
+    /**
+     * Activate plan for user (auto-update user.plan khi admin confirm)
+     */
+    activatePlan: async (userId: string, planId: string): Promise<void> => {
+        try {
+            // Import dynamically để tránh circular dependency
+            const { userService } = await import('./userService');
+
+            // Get user từ collection
+            const users = await userService.getUsers();
+            const user = users.find(u => u.id === userId || u.email === userId);
+
+            if (!user) {
+                console.error('User not found:', userId);
+                return;
+            }
+
+            // Update user plan (cast to correct type)
+            const planType = planId === 'premium' || planId === 'Premium' ? 'Premium' :
+                planId === 'free' || planId === 'Free' ? 'Free' : 'Internal';
+            await userService.updateUser(user.id, { plan: planType });
+
+            // Send activation email
+            await emailService.sendPlanActivated(user, planType);
+
+            console.log(`✅ Activated ${planId} plan for user ${userId}`);
+        } catch (e) {
+            console.error('Failed to activate plan:', e);
+            throw e;
+        }
     }
 };

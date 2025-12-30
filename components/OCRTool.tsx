@@ -63,7 +63,7 @@ const OCRTool: React.FC<OCRToolProps> = ({ onSave }) => {
     const files = e.target.files;
     if (!files) return;
 
-    const newDocs = Array.from(files).map(file => ({
+    const newDocs = Array.from(files).map((file: File) => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       status: 'pending' as const,
@@ -203,14 +203,14 @@ const OCRTool: React.FC<OCRToolProps> = ({ onSave }) => {
                 key={doc.id}
                 onClick={() => setSelectedDocId(doc.id)}
                 className={`w-full text-left p-3 rounded-xl border transition-all group ${selectedDocId === doc.id
-                    ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5'
-                    : 'bg-transparent border-transparent hover:bg-white/5'
+                  ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5'
+                  : 'bg-transparent border-transparent hover:bg-white/5'
                   }`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-lg shrink-0 ${doc.status === 'done' ? 'bg-green-500/10 text-green-500' :
-                      doc.status === 'processing' ? 'bg-blue-500/10 text-blue-500' :
-                        'bg-gray-500/10 text-gray-400'
+                    doc.status === 'processing' ? 'bg-blue-500/10 text-blue-500' :
+                      'bg-gray-500/10 text-gray-400'
                     }`}>
                     <span className="material-symbols-outlined text-[20px]">
                       {doc.file?.type === 'application/pdf' ? 'picture_as_pdf' : 'image'}
@@ -272,8 +272,8 @@ const OCRTool: React.FC<OCRToolProps> = ({ onSave }) => {
                     onClick={handleAiRefine}
                     disabled={isAiProcessing || !selectedDoc}
                     className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isAiProcessing
-                        ? 'bg-primary/20 text-primary cursor-not-allowed'
-                        : 'bg-primary text-white hover:bg-primary-hover shadow-lg shadow-primary/20'
+                      ? 'bg-primary/20 text-primary cursor-not-allowed'
+                      : 'bg-primary text-white hover:bg-primary-hover shadow-lg shadow-primary/20'
                       }`}
                   >
                     <span className={`material-symbols-outlined text-[18px] ${isAiProcessing ? 'animate-spin' : ''}`}>

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { GoogleGenAI } from "@google/genai";
 
 const getAIClient = () => {
@@ -75,7 +76,9 @@ export const chatWithAI = async (lastUserMessage: string, history: ChatMessage[]
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash-exp',
-      systemInstruction: HVAC_SYSTEM_INSTRUCTION,
+      config: {
+        systemInstruction: HVAC_SYSTEM_INSTRUCTION,
+      },
       contents: [
         ...history,
         { role: 'user', parts: [{ text: finalMessage }] }

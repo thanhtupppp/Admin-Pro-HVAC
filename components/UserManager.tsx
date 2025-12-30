@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { userService } from '../services/userService';
 import { AdminUser } from '../types';
+import BulkImportModal from './BulkImportModal';
 
 const UserManager: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -11,6 +12,7 @@ const UserManager: React.FC = () => {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Partial<AdminUser>>({});
 
   useEffect(() => {
@@ -79,6 +81,17 @@ const UserManager: React.FC = () => {
   };
 
   const handleDeleteUser = async (id: string) => {
+    const userToDelete = users.find(u => u.id === id);
+
+    // Bảo vệ Super Admin duy nhất
+    if (userToDelete?.role === 'Super Admin') {
+      const superAdminCount = users.filter(u => u.role === 'Super Admin').length;
+      if (superAdminCount <= 1) {
+        alert('⛔ Không thể xóa Super Admin duy nhất!\n\nHệ thống cần ít nhất 1 Super Admin để quản lý.');
+        return;
+      }
+    }
+
     if (confirm('Bạn có chắc muốn xóa người dùng này?')) {
       await userService.deleteUser(id);
       setUsers(users.filter(u => u.id !== id));
@@ -86,6 +99,17 @@ const UserManager: React.FC = () => {
   };
 
   const handleToggleStatus = async (id: string) => {
+    const userToToggle = users.find(u => u.id === id);
+
+    // Bảo vệ Super Admin duy nhất khỏi bị khóa
+    if (userToToggle?.role === 'Super Admin' && userToToggle.status === 'active') {
+      const activeSuperAdminCount = users.filter(u => u.role === 'Super Admin' && u.status === 'active').length;
+      if (activeSuperAdminCount <= 1) {
+        alert('⛔ Không thể khóa Super Admin duy nhất!\n\nHệ thống cần ít nhất 1 Super Admin hoạt động.');
+        return;
+      }
+    }
+
     try {
       const updatedUser = await userService.toggleStatus(id);
       setUsers(users.map(u => u.id === id ? updatedUser : u));
@@ -129,14 +153,33 @@ const UserManager: React.FC = () => {
           <h1 className="text-2xl font-bold text-white">Quản trị viên & Người dùng</h1>
           <p className="text-text-secondary text-sm">Quản lý phân quyền, truy cập và gói dịch vụ thành viên</p>
         </div>
-        <button
-          onClick={handleAddUser}
-          className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95"
-        >
-          <span className="material-symbols-outlined text-[20px]">person_add</span>
-          Thêm thành viên
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsImportOpen(true)}
+            className="flex items-center gap-2 px-6 py-2.5 bg-white/5 text-text-secondary font-bold rounded-xl border border-white/10 hover:bg-white/10 transition-all"
+          >
+            <span className="material-symbols-outlined text-[20px]">upload_file</span>
+            Import CSV
+          </button>
+          <button
+            onClick={handleAddUser}
+            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[20px]">person_add</span>
+            Thêm thành viên
+          </button>
+        </div>
       </div>
+
+      <BulkImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={() => {
+          loadData();
+          // setIsImportOpen(false); // Optional: keep open to show results
+        }}
+        type="users"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2 relative">
@@ -213,8 +256,8 @@ const UserManager: React.FC = () => {
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                           )}
                           <span className={`relative inline-flex rounded-full h-2 w-2 transition-all duration-500 ${user.status === 'active'
-                              ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]'
-                              : 'bg-red-500/80 shadow-[0_0_5px_rgba(239,68,68,0.3)] animate-pulse'
+                            ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]'
+                            : 'bg-red-500/80 shadow-[0_0_5px_rgba(239,68,68,0.3)] animate-pulse'
                             }`}></span>
                         </div>
                         <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors duration-300 ${user.status === 'active' ? 'text-green-500' : 'text-red-500/70'
@@ -231,13 +274,16 @@ const UserManager: React.FC = () => {
                         <button onClick={() => handleEditUser(user)} title="Chỉnh sửa" className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all">
                           <span className="material-symbols-outlined text-[20px]">edit</span>
                         </button>
-                        <button
-                          onClick={() => handleToggleStatus(user.id)}
-                          title={user.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
-                          className={`p-2 rounded-lg transition-all ${user.status === 'active' ? 'text-text-secondary hover:text-orange-400 hover:bg-orange-400/10' : 'text-orange-400 hover:bg-orange-400/20'}`}
-                        >
-                          <span className="material-symbols-outlined text-[20px]">{user.status === 'active' ? 'lock' : 'lock_open'}</span>
-                        </button>
+                        {/* Chỉ hiện nút khóa nếu KHÔNG phải Super Admin */}
+                        {user.role !== 'Super Admin' && (
+                          <button
+                            onClick={() => handleToggleStatus(user.id)}
+                            title={user.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
+                            className={`p-2 rounded-lg transition-all ${user.status === 'active' ? 'text-text-secondary hover:text-orange-400 hover:bg-orange-400/10' : 'text-orange-400 hover:bg-orange-400/20'}`}
+                          >
+                            <span className="material-symbols-outlined text-[20px]">{user.status === 'active' ? 'lock' : 'lock_open'}</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteUser(user.id)}
                           title="Xóa"

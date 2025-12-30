@@ -3,6 +3,7 @@ import { errorService } from '../services/errorService';
 import { brandService } from '../services/brandService';
 import { userService } from '../services/userService';
 import { ErrorCode } from '../types';
+import DashboardCharts from './DashboardCharts';
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -64,6 +65,9 @@ const Dashboard: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Analytics Charts */}
+      <DashboardCharts />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-surface-dark border border-border-dark/50 rounded-2xl p-6">

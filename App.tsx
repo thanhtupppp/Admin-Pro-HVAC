@@ -15,12 +15,33 @@ import Login from './components/Login';
 import SystemUpdate from './components/SystemUpdate';
 import { ViewType, ToastMessage } from './types';
 import { NAV_ITEMS } from './constants';
+import { auth } from './services/firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
+import { authService } from './services/authService';
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // Loading state
   const [currentView, setCurrentView] = useState<ViewType>(ViewType.DASHBOARD);
   const [selectedErrorId, setSelectedErrorId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Check auth state on mount và lắng nghe thay đổi
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User đã đăng nhập, restore session
+        setIsLoggedIn(true);
+      } else {
+        // User chưa đăng nhập
+        setIsLoggedIn(false);
+      }
+      setIsCheckingAuth(false); // Đã check xong
+    });
+
+    // Cleanup listener khi unmount
+    return () => unsubscribe();
+  }, []);
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -45,10 +66,26 @@ const App: React.FC = () => {
     addToast("Đăng nhập thành công!", "success");
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.signOut();
     setIsLoggedIn(false);
     setCurrentView(ViewType.DASHBOARD);
+    addToast("Đã đăng xuất", "info");
   };
+
+  // Hiển thị loading khi đang check auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-background-dark flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/40 mx-auto animate-pulse">
+            <span className="material-symbols-outlined text-white text-3xl">admin_panel_settings</span>
+          </div>
+          <p className="text-text-secondary text-sm">Đang kiểm tra phiên đăng nhập...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -93,16 +130,15 @@ const App: React.FC = () => {
     <Layout currentView={currentView} onNavigate={handleNavigate} onLogout={handleLogout}>
       {renderContent()}
       <AISmartAssistant />
-      
+
       {/* Toast Notification Container */}
       <div className="fixed top-6 right-6 z-[999] flex flex-col gap-3 pointer-events-none">
         {toasts.map(toast => (
-          <div 
+          <div
             key={toast.id}
-            className={`pointer-events-auto px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right-4 duration-300 ${
-              toast.type === 'success' ? 'bg-green-500 text-white' : 
-              toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-primary text-white'
-            }`}
+            className={`pointer-events-auto px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right-4 duration-300 ${toast.type === 'success' ? 'bg-green-500 text-white' :
+                toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-primary text-white'
+              }`}
           >
             <span className="material-symbols-outlined">
               {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}

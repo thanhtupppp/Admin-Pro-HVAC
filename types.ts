@@ -90,3 +90,66 @@ export interface SubscriptionPlan {
   userCount: number;
   status: 'active' | 'inactive';
 }
+
+export interface Notification {
+  id: string;
+  type: 'user' | 'error' | 'system' | 'warning';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  icon?: string;
+  activityId?: string; // Link to ActivityEntry
+}
+
+export interface Coupon {
+  id: string;
+  code: string; // SUMMER2024, NEWYEAR50
+  discountType: 'percent' | 'fixed';
+  discountValue: number; // 50 (%) hoặc 50000 (VNĐ)
+  validFrom: string;
+  validTo: string;
+  usageLimit: number; // Số lần tối đa
+  usedCount: number; // Số lần đã dùng
+  status: 'active' | 'expired' | 'disabled';
+  applicablePlans?: string[]; // ['premium', 'enterprise'] hoặc [] = all
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BankSettings {
+  id: string;
+  bankId: string; // 'ICB', 'VCB', 'TCB', etc.
+  bankName: string; // 'VietinBank', 'Vietcombank', etc.
+  accountNumber: string;
+  accountName: string;
+  template: 'compact' | 'compact2' | 'qr_only' | 'print';
+  isActive: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface ServicePlan {
+  id: string;
+  name: string;
+  price: number;
+  duration: number; // in months
+  features: string[];
+  isPopular?: boolean;
+  description?: string;
+  status: 'active' | 'archived';
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  userEmail: string;
+  planId: string;
+  amount: number;
+  status: 'pending' | 'completed' | 'failed' | 'rejected';
+  paymentMethod: 'vietqr' | 'momo' | 'banking';
+  createdAt: string;
+  updatedAt: string;
+  couponCode?: string;
+}

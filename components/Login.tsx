@@ -1,23 +1,31 @@
 
 import React, { useState } from 'react';
+import { authService } from '../services/authService';
 
 interface LoginProps {
   onLoginSuccess: () => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('admin@service.vn');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Giả lập API call - Chấp nhận mọi tài khoản trong bản demo
-    setTimeout(() => {
+    setErrorMessage('');
+
+    const result = await authService.signIn(email, password);
+
+    if (result.success) {
       onLoginSuccess();
-      setIsLoading(false);
-    }, 1500);
+    } else {
+      setErrorMessage(result.error || 'Đăng nhập thất bại');
+    }
+
+    setIsLoading(false);
   };
 
   return (
@@ -41,8 +49,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest ml-1">Email quản trị</label>
               <div className="relative group">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary group-focus-within:text-primary transition-colors">alternate_email</span>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -56,8 +64,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest ml-1">Mật khẩu</label>
               <div className="relative group">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary group-focus-within:text-primary transition-colors">lock</span>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -75,7 +83,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <a href="#" className="text-xs text-primary font-bold hover:underline">Quên mật khẩu?</a>
             </div>
 
-            <button 
+            <button
               disabled={isLoading}
               className={`w-full py-4 bg-primary hover:bg-primary-hover text-white font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'active:scale-95'}`}
             >
@@ -88,14 +96,17 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </>
               )}
             </button>
-            
-            <p className="text-center text-[10px] text-text-secondary italic">
-              * Bản demo: Nhập bất kỳ thông tin nào để đăng nhập.
-            </p>
+
+            {errorMessage && (
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <span className="material-symbols-outlined text-red-500 text-[20px]">error</span>
+                <p className="text-sm text-red-500 font-medium">{errorMessage}</p>
+              </div>
+            )}
           </form>
 
           <div className="pt-4 border-t border-border-dark/20">
-             <p className="text-[10px] text-text-secondary font-medium">Hệ thống quản lý nội bộ dành cho Technician App</p>
+            <p className="text-[10px] text-text-secondary font-medium">Hệ thống quản lý nội bộ dành cho Technician App</p>
           </div>
         </div>
       </div>

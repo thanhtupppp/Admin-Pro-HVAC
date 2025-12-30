@@ -1,7 +1,12 @@
 
-import React from 'react';
-import { ViewType } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ViewType, Notification } from '../types';
 import { NAV_ITEMS } from '../constants';
+import { auth } from '../services/firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
+import { userService } from '../services/userService';
+import { notificationService } from '../services/notificationService';
+import NotificationPanel from './NotificationPanel';
 
 interface LayoutProps {
   currentView: ViewType;
@@ -11,6 +16,48 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, children }) => {
+  const [currentUser, setCurrentUser] = useState<{ username: string, email: string, avatar: string } | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Lấy thông tin user từ Firestore
+        const users = await userService.getUsers();
+        const userInDb = users.find(u => u.email === firebaseUser.email);
+        if (userInDb) {
+          setCurrentUser({
+            username: userInDb.username,
+            email: userInDb.email,
+            avatar: userInDb.avatar || 'AD'
+          });
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Subscribe notifications real-time
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribeNotifications((notifs) => {
+      setNotifications(notifs);
+      setUnreadCount(notifs.filter(n => !n.read).length);
+    }, 15);
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleMarkAllRead = () => {
+    // Mark all as read (update state locally)
+    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
   return (
     <div className="flex h-screen w-full bg-background-dark overflow-hidden font-display">
       {/* Sidebar - Hidden on mobile, shown on md+ */}
@@ -24,17 +71,16 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
             <p className="text-[10px] text-text-secondary uppercase tracking-widest">Service Console</p>
           </div>
         </div>
-        
+
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scroll">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all group ${
-                currentView === item.id 
-                  ? 'bg-primary text-white shadow-lg shadow-primary/30 border border-primary/20' 
-                  : 'text-text-secondary hover:bg-white/5 hover:text-white border border-transparent'
-              }`}
+              className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all group ${currentView === item.id
+                ? 'bg-primary text-white shadow-lg shadow-primary/30 border border-primary/20'
+                : 'text-text-secondary hover:bg-white/5 hover:text-white border border-transparent'
+                }`}
             >
               <span className={`material-symbols-outlined ${currentView === item.id ? 'text-white' : 'group-hover:text-white'}`}>
                 {item.icon}
@@ -45,16 +91,16 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
         </nav>
 
         <div className="p-4 border-t border-border-dark/30">
-          <div 
+          <div
             onClick={onLogout}
             className="flex items-center gap-3 p-2 rounded-xl hover:bg-red-500/10 cursor-pointer transition-colors group"
           >
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-              AD
+              {currentUser?.avatar || 'AD'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">Admin User</p>
-              <p className="text-[10px] text-text-secondary truncate">admin@system.vn</p>
+              <p className="text-sm font-medium text-white truncate">{currentUser?.username || 'Loading...'}</p>
+              <p className="text-[10px] text-text-secondary truncate">{currentUser?.email || ''}</p>
             </div>
             <span className="material-symbols-outlined text-text-secondary group-hover:text-red-500 text-lg transition-colors">logout</span>
           </div>
@@ -72,20 +118,35 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
               {NAV_ITEMS.find(n => n.id === currentView)?.label || 'Chi tiết'}
             </h2>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center bg-surface-dark border border-border-dark rounded-xl px-3 py-2 w-64 focus-within:ring-1 ring-primary/50 transition-all">
               <span className="material-symbols-outlined text-text-secondary text-sm">search</span>
-              <input 
-                type="text" 
-                placeholder="Tìm nhanh..." 
+              <input
+                type="text"
+                placeholder="Tìm nhanh..."
                 className="bg-transparent border-none text-xs text-white focus:ring-0 w-full placeholder:text-text-secondary"
               />
             </div>
-            <button className="relative p-2 text-text-secondary hover:text-white hover:bg-white/5 rounded-full transition-colors">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-background-dark"></span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 text-text-secondary hover:text-white hover:bg-white/5 rounded-full transition-colors"
+              >
+                <span className="material-symbols-outlined">notifications</span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-background-dark"></span>
+                )}
+              </button>
+              {showNotifications && (
+                <NotificationPanel
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  onClose={() => setShowNotifications(false)}
+                  onMarkAllRead={handleMarkAllRead}
+                />
+              )}
+            </div>
           </div>
         </header>
 
@@ -106,7 +167,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
             <span className="text-[10px] font-medium">{item.label}</span>
           </button>
         ))}
-        <button 
+        <button
           onClick={onLogout}
           className="flex flex-col items-center gap-1 p-2 text-text-secondary"
         >

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { systemService, SystemSettings } from '../services/systemService';
+import VietQRSettings from './VietQRSettings';
+import BackupManager from './BackupManager';
+import EmailSettings from './EmailSettings';
 
 interface SettingsProps {
   onSave?: () => void;
@@ -69,6 +72,8 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   const SECTIONS = [
     { id: 'general', label: 'Hệ thống', icon: 'settings' },
     { id: 'ai', label: 'Cấu hình AI', icon: 'psychology' },
+    { id: 'payment', label: 'Thanh toán VietQR', icon: 'qr_code' },
+    { id: 'email', label: 'Email Service', icon: 'mail' },
     { id: 'notification', label: 'Thông báo', icon: 'notifications' },
     { id: 'security', label: 'Bảo mật', icon: 'security' },
     { id: 'backup', label: 'Sao lưu', icon: 'cloud_sync' },
@@ -86,8 +91,8 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
               key={s.id}
               onClick={() => setActiveSection(s.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeSection === s.id
-                  ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                  : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                : 'text-text-secondary hover:bg-white/5 hover:text-white'
                 }`}
             >
               <span className="material-symbols-outlined text-[20px]">{s.icon}</span>
@@ -221,6 +226,12 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
             </div>
           )}
 
+          {activeSection === 'payment' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <VietQRSettings />
+            </div>
+          )}
+
           {activeSection === 'security' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-surface-dark border border-border-dark/30 rounded-3xl p-8 space-y-6 shadow-xl">
@@ -237,6 +248,18 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeSection === 'backup' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <BackupManager />
+            </div>
+          )}
+
+          {activeSection === 'email' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <EmailSettings />
             </div>
           )}
         </div>

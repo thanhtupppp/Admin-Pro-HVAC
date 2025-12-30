@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { errorService } from '../services/errorService';
 import { ErrorCode } from '../types';
+import BulkImportModal from './BulkImportModal';
 
 interface ErrorListProps {
   onEdit: (id: string) => void;
@@ -16,6 +17,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
   const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
   const [errors, setErrors] = useState<ErrorCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   useEffect(() => {
     loadErrors();
@@ -102,11 +104,31 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
             <option>Samsung</option>
           </select>
         </div>
-        <button className="w-full sm:w-auto px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2 active:scale-95">
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          Thêm mã lỗi mới
-        </button>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setIsImportOpen(true)}
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-white/5 text-text-secondary font-bold rounded-xl border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[20px]">upload_file</span>
+            Import CSV
+          </button>
+          <button className="flex-1 sm:flex-none px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2 active:scale-95">
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            Thêm mã lỗi mới
+          </button>
+        </div>
       </div>
+
+
+
+      <BulkImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={() => {
+          loadErrors();
+        }}
+        type="errors"
+      />
 
       {/* Virtualized Table Container */}
       <div className="flex-1 bg-surface-dark border border-border-dark/50 rounded-2xl overflow-hidden shadow-2xl flex flex-col relative">
@@ -199,118 +221,120 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
       </div>
 
       {/* Side Detail Panel */}
-      {selectedError && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setSelectedDetailId(null)}
-          />
-          <div className="fixed top-0 right-0 h-screen w-full max-w-md bg-surface-dark border-l border-border-dark shadow-2xl z-50 transform transition-transform duration-300 ease-out translate-x-0">
-            <div className="h-full flex flex-col">
-              {/* Panel Header */}
-              <div className="p-6 border-b border-border-dark/30 flex items-center justify-between bg-background-dark/50">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                    <span className="font-bold text-lg">{selectedError.code}</span>
+      {
+        selectedError && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
+              onClick={() => setSelectedDetailId(null)}
+            />
+            <div className="fixed top-0 right-0 h-screen w-full max-w-md bg-surface-dark border-l border-border-dark shadow-2xl z-50 transform transition-transform duration-300 ease-out translate-x-0">
+              <div className="h-full flex flex-col">
+                {/* Panel Header */}
+                <div className="p-6 border-b border-border-dark/30 flex items-center justify-between bg-background-dark/50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                      <span className="font-bold text-lg">{selectedError.code}</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white leading-tight">{selectedError.brand}</h3>
+                      <p className="text-xs text-text-secondary uppercase tracking-widest">Thông tin chi tiết mã lỗi</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-white leading-tight">{selectedError.brand}</h3>
-                    <p className="text-xs text-text-secondary uppercase tracking-widest">Thông tin chi tiết mã lỗi</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedDetailId(null)}
-                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 text-text-secondary hover:text-white transition-colors"
-                >
-                  <span className="material-symbols-outlined">close</span>
-                </button>
-              </div>
-
-              {/* Panel Content */}
-              <div className="flex-1 overflow-y-auto custom-scroll p-6 space-y-8">
-                {/* Title Section */}
-                <div>
-                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Tên lỗi</h4>
-                  <p className="text-white font-medium leading-relaxed">{selectedError.title}</p>
-                </div>
-
-                {/* Symptom Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-amber-500 text-[20px]">monitor_heart</span>
-                    <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Triệu chứng nhận biết</h4>
-                  </div>
-                  <div className="bg-background-dark/50 rounded-xl p-4 border border-border-dark/30">
-                    <p className="text-sm text-gray-300 leading-relaxed italic">"{selectedError.symptom}"</p>
-                  </div>
-                </div>
-
-                {/* Cause Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-red-500 text-[20px]">report_problem</span>
-                    <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Nguyên nhân dự kiến</h4>
-                  </div>
-                  <p className="text-sm text-gray-300 leading-relaxed px-1">
-                    {selectedError.cause}
-                  </p>
-                </div>
-
-                {/* Components Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-blue-500 text-[20px]">inventory_2</span>
-                    <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Linh kiện liên quan</h4>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedError.components?.map((comp, idx) => (
-                      <span key={idx} className="px-3 py-1.5 bg-white/5 border border-border-dark rounded-lg text-xs text-white font-medium">
-                        {comp}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Steps Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-green-500 text-[20px]">checklist</span>
-                    <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Các bước kiểm tra</h4>
-                  </div>
-                  <div className="space-y-3">
-                    {selectedError.steps?.map((step, idx) => (
-                      <div key={idx} className="flex gap-4 p-4 bg-background-dark/30 rounded-xl border border-border-dark/20">
-                        <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                          {idx + 1}
-                        </span>
-                        <p className="text-xs text-gray-400 leading-relaxed">{step}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Panel Footer */}
-              <div className="p-6 border-t border-border-dark/30 bg-background-dark/30">
-                <div className="grid grid-cols-2 gap-4">
                   <button
-                    onClick={() => onEdit(selectedError.id)}
-                    className="flex items-center justify-center gap-2 py-3 bg-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all"
+                    onClick={() => setSelectedDetailId(null)}
+                    className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 text-text-secondary hover:text-white transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                    Chỉnh sửa ngay
+                    <span className="material-symbols-outlined">close</span>
                   </button>
-                  <button className="flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-border-dark transition-all">
-                    <span className="material-symbols-outlined text-[18px]">share</span>
-                    Chia sẻ
-                  </button>
+                </div>
+
+                {/* Panel Content */}
+                <div className="flex-1 overflow-y-auto custom-scroll p-6 space-y-8">
+                  {/* Title Section */}
+                  <div>
+                    <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Tên lỗi</h4>
+                    <p className="text-white font-medium leading-relaxed">{selectedError.title}</p>
+                  </div>
+
+                  {/* Symptom Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-amber-500 text-[20px]">monitor_heart</span>
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Triệu chứng nhận biết</h4>
+                    </div>
+                    <div className="bg-background-dark/50 rounded-xl p-4 border border-border-dark/30">
+                      <p className="text-sm text-gray-300 leading-relaxed italic">"{selectedError.symptom}"</p>
+                    </div>
+                  </div>
+
+                  {/* Cause Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-red-500 text-[20px]">report_problem</span>
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Nguyên nhân dự kiến</h4>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed px-1">
+                      {selectedError.cause}
+                    </p>
+                  </div>
+
+                  {/* Components Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-blue-500 text-[20px]">inventory_2</span>
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Linh kiện liên quan</h4>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedError.components?.map((comp, idx) => (
+                        <span key={idx} className="px-3 py-1.5 bg-white/5 border border-border-dark rounded-lg text-xs text-white font-medium">
+                          {comp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Steps Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-green-500 text-[20px]">checklist</span>
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Các bước kiểm tra</h4>
+                    </div>
+                    <div className="space-y-3">
+                      {selectedError.steps?.map((step, idx) => (
+                        <div key={idx} className="flex gap-4 p-4 bg-background-dark/30 rounded-xl border border-border-dark/20">
+                          <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                            {idx + 1}
+                          </span>
+                          <p className="text-xs text-gray-400 leading-relaxed">{step}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Panel Footer */}
+                <div className="p-6 border-t border-border-dark/30 bg-background-dark/30">
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => onEdit(selectedError.id)}
+                      className="flex items-center justify-center gap-2 py-3 bg-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">edit</span>
+                      Chỉnh sửa ngay
+                    </button>
+                    <button className="flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-border-dark transition-all">
+                      <span className="material-symbols-outlined text-[18px]">share</span>
+                      Chia sẻ
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
-    </div>
+          </>
+        )
+      }
+    </div >
   );
 };
 

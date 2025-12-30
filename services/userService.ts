@@ -1,5 +1,6 @@
 import { AdminUser } from '../types';
 import { db } from './firebaseConfig';
+import { emailService } from './emailService';
 import {
     collection,
     getDocs,
@@ -41,7 +42,12 @@ export const userService = {
         };
 
         const docRef = await addDoc(collection(db, 'users'), newUser);
-        return { id: docRef.id, ...newUser } as AdminUser;
+        const createdUser = { id: docRef.id, ...newUser } as AdminUser;
+
+        // Auto send welcome email
+        await emailService.sendWelcomeEmail(createdUser);
+
+        return createdUser;
     },
 
     updateUser: async (id: string, updates: Partial<AdminUser>): Promise<AdminUser> => {
