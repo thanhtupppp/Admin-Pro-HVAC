@@ -1,0 +1,118 @@
+
+import React, { useState, useEffect } from 'react';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import ErrorEdit from './components/ErrorEdit';
+import ErrorList from './components/ErrorList';
+import OCRTool from './components/OCRTool';
+import UserManager from './components/UserManager';
+import PlanManager from './components/PlanManager';
+import BrandManager from './components/BrandManager';
+import ActivityLog from './components/ActivityLog';
+import Settings from './components/Settings';
+import AISmartAssistant from './components/AISmartAssistant';
+import Login from './components/Login';
+import SystemUpdate from './components/SystemUpdate';
+import { ViewType, ToastMessage } from './types';
+import { NAV_ITEMS } from './constants';
+
+const App: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewType>(ViewType.DASHBOARD);
+  const [selectedErrorId, setSelectedErrorId] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
+
+  const handleNavigate = (view: ViewType) => {
+    setCurrentView(view);
+    setSelectedErrorId(null);
+  };
+
+  const handleEditError = (id: string) => {
+    setSelectedErrorId(id);
+    setCurrentView(ViewType.ERROR_EDIT);
+  };
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    addToast("Đăng nhập thành công!", "success");
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentView(ViewType.DASHBOARD);
+  };
+
+  if (!isLoggedIn) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const renderContent = () => {
+    switch (currentView) {
+      case ViewType.DASHBOARD:
+        return <Dashboard />;
+      case ViewType.USER_MANAGER:
+        return <UserManager />;
+      case ViewType.PLAN_MANAGER:
+        return <PlanManager />;
+      case ViewType.ERROR_LIST:
+        return <ErrorList onEdit={handleEditError} />;
+      case ViewType.ERROR_EDIT:
+        return <ErrorEdit onCancel={() => setCurrentView(ViewType.ERROR_LIST)} onSave={() => addToast("Đã lưu thay đổi", "success")} />;
+      case ViewType.OCR_TOOL:
+        return <OCRTool onSave={() => addToast("Đã nhập dữ liệu vào hệ thống", "success")} />;
+      case ViewType.BRAND_MANAGER:
+        return <BrandManager />;
+      case ViewType.ACTIVITY_LOG:
+        return <ActivityLog />;
+      case ViewType.SYSTEM_UPDATE:
+        return <SystemUpdate />;
+      case ViewType.SETTINGS:
+        return <Settings onSave={() => addToast("Cài đặt đã được cập nhật", "success")} />;
+      default:
+        return (
+          <div className="flex flex-col items-center justify-center h-full text-text-secondary space-y-4">
+            <span className="material-symbols-outlined text-6xl">construction</span>
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-white">Tính năng đang phát triển</h3>
+              <p className="text-sm">Trang {NAV_ITEMS.find(n => n.id === currentView)?.label} đang được hoàn thiện.</p>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <Layout currentView={currentView} onNavigate={handleNavigate} onLogout={handleLogout}>
+      {renderContent()}
+      <AISmartAssistant />
+      
+      {/* Toast Notification Container */}
+      <div className="fixed top-6 right-6 z-[999] flex flex-col gap-3 pointer-events-none">
+        {toasts.map(toast => (
+          <div 
+            key={toast.id}
+            className={`pointer-events-auto px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right-4 duration-300 ${
+              toast.type === 'success' ? 'bg-green-500 text-white' : 
+              toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-primary text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined">
+              {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
+            </span>
+            <span className="text-sm font-bold">{toast.message}</span>
+          </div>
+        ))}
+      </div>
+    </Layout>
+  );
+};
+
+export default App;

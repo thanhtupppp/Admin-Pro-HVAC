@@ -1,0 +1,7 @@
+{
+  "name": "Admin Pro - Appliance Service Console",
+  "description": "A comprehensive administration dashboard for managing technical error codes, OCR data extraction from manuals, brand/model hierarchies, and user permissions for appliance repair services.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
