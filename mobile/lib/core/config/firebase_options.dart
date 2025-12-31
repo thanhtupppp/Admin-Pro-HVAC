@@ -55,8 +55,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAjlwe3zThnEbr6rGHB7YP19-IBHGNcz6I',
-    appId: '1:385210564068:android:b5b5f4137727b294991bf1',
+    apiKey: 'AIzaSyBzHPtVWTMXCwwo5tPbhVWW78JTM4cdJjo',
+    appId: '1:385210564068:android:faf0d131553dd1c1991bf1',
     messagingSenderId: '385210564068',
     projectId: 'admin-pro-hvac',
     storageBucket: 'admin-pro-hvac.firebasestorage.app',
