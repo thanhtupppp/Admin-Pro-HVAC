@@ -167,7 +167,7 @@ class ErrorDetailScreen extends ConsumerWidget {
                 fit: BoxFit.cover,
               ),
               border: Border.all(
-                color: AppColors.textSecondary.withOpacity(0.2),
+                color: AppColors.textSecondary.withValues(alpha: 0.2),
               ),
             ),
             child: Align(
@@ -267,9 +267,9 @@ class ErrorDetailScreen extends ConsumerWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: color.withOpacity(0.3)),
+                    border: Border.all(color: color.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     item,
@@ -342,7 +342,7 @@ class ErrorDetailScreen extends ConsumerWidget {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

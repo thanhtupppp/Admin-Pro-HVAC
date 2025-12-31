@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../home/models/error_code_model.dart';
+import '../home/models/error_code_model.dart';
 
 class SearchRepository {
   final FirebaseFirestore _firestore;
@@ -44,7 +44,7 @@ class SearchRepository {
         return matchesCode || matchesTitle || matchesSymptom || matchesModel;
       }).toList();
     } catch (e) {
-      print('Search Error: $e');
+      // log('Search Error: $e');
       return [];
     }
   }

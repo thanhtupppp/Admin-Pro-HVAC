@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
-import '../../home/models/error_code_model.dart';
+import '../home/models/error_code_model.dart';
 import 'search_repository.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -331,7 +331,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

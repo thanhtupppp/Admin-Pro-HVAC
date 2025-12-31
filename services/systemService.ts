@@ -16,13 +16,15 @@ export interface SystemSettings {
     maintenanceMode: boolean;
     aiBudget: number;
     aiModel: string;
+    geminiApiKey?: string; // Optional, stored securely in Firestore
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
     appName: 'Admin Pro Console',
     maintenanceMode: false,
     aiBudget: 32768,
-    aiModel: 'gemini-2.0-flash-exp'
+    aiModel: 'gemini-2.5-flash',
+    geminiApiKey: ''
 };
 
 export const systemService = {

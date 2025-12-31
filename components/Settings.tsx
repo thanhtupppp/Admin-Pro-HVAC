@@ -11,17 +11,18 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   const [activeSection, setActiveSection] = useState('general');
   const [hasKey, setHasKey] = useState<boolean>(false);
+  const [manualKey, setManualKey] = useState<string>('');
   const [settings, setSettings] = useState<SystemSettings>({
     appName: 'Admin Pro Console',
     maintenanceMode: false,
     aiBudget: 32768,
-    aiModel: 'gemini-2.0-flash-exp'
+    aiModel: 'gemini-2.5-flash',
+    geminiApiKey: ''
   });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadSettings();
-    checkKey();
   }, []);
 
   const loadSettings = async () => {
@@ -29,18 +30,15 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
     try {
       const data = await systemService.getSettings();
       setSettings(data);
+      // Load API key from Firebase
+      if (data.geminiApiKey) {
+        setManualKey(data.geminiApiKey);
+        setHasKey(true);
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const checkKey = async () => {
-    // Check if global aistudio helper is available
-    if ((window as any).aistudio && typeof (window as any).aistudio.hasSelectedApiKey === 'function') {
-      const selected = await (window as any).aistudio.hasSelectedApiKey();
-      setHasKey(selected);
     }
   };
 
@@ -57,7 +55,13 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
 
   const handleSave = async () => {
     try {
-      await systemService.updateSettings(settings);
+      // Include API key in settings update
+      const updatedSettings = {
+        ...settings,
+        geminiApiKey: manualKey
+      };
+      await systemService.updateSettings(updatedSettings);
+      setSettings(updatedSettings);
       alert("Cập nhật cài đặt thành công!");
       if (onSave) onSave();
     } catch (e) {
@@ -166,24 +170,23 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                   </div>
 
                   <div className="relative">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-2 block">Cấu hình Chìa khóa (Masked for Security)</label>
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-2 block">Cấu hình Chìa khóa (API Key)</label>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1 relative">
                         <input
                           type="password"
-                          value="********************************"
-                          disabled
-                          className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-text-secondary cursor-not-allowed opacity-60 font-mono"
+                          value={manualKey}
+                          onChange={(e) => {
+                            setManualKey(e.target.value);
+                            localStorage.setItem('GEMINI_API_KEY', e.target.value);
+                            setHasKey(!!e.target.value);
+                          }}
+                          placeholder="Nhập Gemini API Key tại đây..."
+                          className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none font-mono"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-sm">lock</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-sm">vpn_key</span>
                       </div>
-                      <button
-                        onClick={handleUpdateKey}
-                        className="px-6 py-3 bg-primary/10 hover:bg-primary text-primary hover:text-white border border-primary/30 font-bold rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap"
-                      >
-                        <span className="material-symbols-outlined text-[20px]">vpn_key</span>
-                        {hasKey ? 'Thay đổi Key' : 'Thiết lập ngay'}
-                      </button>
+                      {/* Optional: Keep the secure helper button if it exists, or remove if redundant */}
                     </div>
                   </div>
 
@@ -213,12 +216,14 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                     <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Model mặc định</label>
                     <select
                       value={settings.aiModel}
-                      onChange={(e) => handleChange('aiModel', e.target.value)}
+                      onChange={(e) => {
+                          handleChange('aiModel', e.target.value);
+                      }}
                       className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
                     >
-                      <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp (Khuyên dùng)</option>
-                      <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-                      <option value="gemini-1.5-flash">gemini-1.5-flash-latest</option>
+                      <option value="gemini-2.5-flash">gemini-2.5-flash (Ổn định - Khuyên dùng)</option>
+                      <option value="gemini-2.5-pro">gemini-2.5-pro (Suy luận cao cấp)</option>
+                      <option value="gemini-2.0-flash-thinking-exp">gemini-2.0-flash-thinking-exp (Chain-of-Thought)</option>
                     </select>
                   </div>
                 </div>

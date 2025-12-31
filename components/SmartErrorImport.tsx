@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { analyzeFileContent } from './AIService';
 import { errorService } from '../services/errorService';
 import { extractDriveFileId, getDriveImageLink, isValidDriveLink } from '../utils/googleDriveUtils';
+import { brandService } from '../services/brandService';
+import { Brand } from '../types';
 
 interface ExtractedData {
     code: string;
@@ -21,6 +23,17 @@ const SmartErrorImport: React.FC = () => {
     // State for Wizard Steps
     const [step, setStep] = useState<1 | 2 | 3>(1);
     
+    // Brand Data
+    const [brands, setBrands] = useState<Brand[]>([]);
+
+    useEffect(() => {
+        const loadBrands = async () => {
+            const data = await brandService.getBrands();
+            setBrands(data);
+        };
+        loadBrands();
+    }, []);
+
     // Step 1: Context
     const [contextData, setContextData] = useState({
         brand: '',
@@ -99,6 +112,11 @@ const SmartErrorImport: React.FC = () => {
                 model: extractedData.model_series || 'All Models',
                 status: 'active',
                 severity: 'medium',
+                isCommon: false,
+                components: extractedData.components.filter(c => c),
+                tools: extractedData.tools.filter(t => t),
+                steps: extractedData.steps.filter(s => s),
+                images: extractedData.images.filter(i => i)
             });
             alert(`Đã lưu mã lỗi ${extractedData.code} thành công!`);
             // Reset flow
@@ -163,13 +181,16 @@ const SmartErrorImport: React.FC = () => {
                     <div className="space-y-6">
                         <div>
                             <label className="block text-sm font-bold text-text-secondary mb-2 uppercase">Hãng sản xuất</label>
-                            <input 
-                                type="text" 
-                                placeholder="VD: Daikin, Panasonic, LG..."
+                            <select
                                 value={contextData.brand}
                                 onChange={(e) => setContextData({...contextData, brand: e.target.value})}
-                                className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none"
-                            />
+                                className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none appearance-none"
+                            >
+                                <option value="">-- Chọn Hãng --</option>
+                                {brands.map((b) => (
+                                    <option key={b.id} value={b.name}>{b.name}</option>
+                                ))}
+                            </select>
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-text-secondary mb-2 uppercase">Dòng máy / Model Series (Tùy chọn)</label>

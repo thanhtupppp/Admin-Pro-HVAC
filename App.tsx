@@ -30,10 +30,13 @@ const App: React.FC = () => {
 
   // Check auth state on mount và lắng nghe thay đổi
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // User đã đăng nhập, restore session
         setIsLoggedIn(true);
+        // Load AI settings from Firebase
+        const { loadAISettings } = await import('./components/AIService');
+        await loadAISettings();
       } else {
         // User chưa đăng nhập
         setIsLoggedIn(false);

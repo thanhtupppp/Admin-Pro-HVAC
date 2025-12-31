@@ -1,11 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { extractDriveFileId, getDrivePreviewLink, isValidDriveLink, getDriveImageLink } from '../utils/googleDriveUtils';
-import { MOCK_BRANDS } from '../constants';
+// import { MOCK_BRANDS } from '../constants'; // Removed
 import { documentService, Document } from '../services/documentService';
+import { brandService } from '../services/brandService';
+import { Brand } from '../types';
 
 const DocumentManager: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]); // New State
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -13,18 +15,22 @@ const DocumentManager: React.FC = () => {
   const [selectedBrand, setSelectedBrand] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Load documents on mount
+  // Load documents and brands on mount
   useEffect(() => {
-    loadDocuments();
+    loadData();
   }, []);
 
-  const loadDocuments = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-        const docs = await documentService.getDocuments();
+        const [docs, allBrands] = await Promise.all([
+          documentService.getDocuments(),
+          brandService.getBrands()
+        ]);
         setDocuments(docs);
+        setBrands(allBrands);
     } catch (error) {
-        console.error("Failed to load documents", error);
+        console.error("Failed to load data", error);
     } finally {
         setLoading(false);
     }
@@ -72,7 +78,10 @@ const DocumentManager: React.FC = () => {
         type: formData.type
       });
       
-      await loadDocuments(); // Refresh list
+      // await loadDocuments(); // Refresh list - Reuse loadData or separate
+      const docs = await documentService.getDocuments();
+      setDocuments(docs);
+
       setIsModalOpen(false);
       setFormData({ title: '', brand: '', model: '', link: '', type: 'manual' });
       setPreviewId(null);
@@ -85,7 +94,8 @@ const DocumentManager: React.FC = () => {
     if(!window.confirm("Bạn có chắc muốn xóa tài liệu này?")) return;
     try {
         await documentService.deleteDocument(id);
-        await loadDocuments();
+        const docs = await documentService.getDocuments();
+        setDocuments(docs);
     } catch (e) {
         alert("Xóa thất bại");
     }
@@ -116,7 +126,7 @@ const DocumentManager: React.FC = () => {
                     className="bg-surface-dark border border-border-dark rounded-xl px-4 py-2 text-white text-sm focus:border-primary outline-none cursor-pointer"
                 >
                     <option value="All">Tất cả hãng</option>
-                    {MOCK_BRANDS.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                    {brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
                 </select>
             </div>
 
@@ -239,7 +249,7 @@ const DocumentManager: React.FC = () => {
                     className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary outline-none appearance-none"
                   >
                     <option value="">-- Chọn Hãng --</option>
-                    {MOCK_BRANDS.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                    {brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
