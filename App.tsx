@@ -107,7 +107,16 @@ const App: React.FC = () => {
       case ViewType.ERROR_LIST:
         return <ErrorList onEdit={handleEditError} />;
       case ViewType.ERROR_EDIT:
-        return <ErrorEdit onCancel={() => setCurrentView(ViewType.ERROR_LIST)} onSave={() => addToast("Đã lưu thay đổi", "success")} />;
+        return (
+          <ErrorEdit
+            errorId={selectedErrorId || undefined}
+            onCancel={() => setCurrentView(ViewType.ERROR_LIST)}
+            onSave={() => {
+              addToast("Đã lưu thay đổi", "success");
+              setCurrentView(ViewType.ERROR_LIST);
+            }}
+          />
+        );
       case ViewType.OCR_TOOL:
         return <SmartErrorImport />;
       case ViewType.DOCUMENT_MANAGER:

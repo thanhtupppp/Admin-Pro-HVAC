@@ -3,70 +3,116 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../home/models/error_code_model.dart';
 
 class TroubleshootScreen extends ConsumerStatefulWidget {
-  const TroubleshootScreen({super.key});
+  final ErrorCode errorCode;
+
+  const TroubleshootScreen({super.key, required this.errorCode});
 
   @override
   ConsumerState<TroubleshootScreen> createState() => _TroubleshootScreenState();
 }
 
 class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
-  // State for progress simulation
-  int currentStep = 2;
-  int totalSteps = 5;
+  int currentStep = 1;
+
+  int get totalSteps => widget.errorCode.steps.length;
+
+  String get currentStepContent {
+    if (widget.errorCode.steps.isEmpty) return '';
+    final index = currentStep - 1;
+    if (index < 0 || index >= widget.errorCode.steps.length) return '';
+    return widget.errorCode.steps[index];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final errorCode = widget.errorCode;
+
+    // Nếu không có steps, hiển thị thông báo
+    if (errorCode.steps.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(
+            'Mã lỗi ${errorCode.code}',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 64,
+                color: AppColors.textSecondary,
+              ),
+              const Gap(16),
+              Text(
+                'Chưa có quy trình kiểm tra',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 18),
+              ),
+              const Gap(8),
+              Text(
+                'Vui lòng thêm các bước xử lý trên Web Admin',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
+            _buildHeader(context, errorCode),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: 100),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Hero Image
+                    // Hero Section with Step Title
                     Container(
-                      height: 220,
                       width: double.infinity,
+                      padding: const EdgeInsets.all(20),
                       decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Color(0xFF1E293B),
-                            width: 1,
-                          ),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF1E3A5F), AppColors.background],
                         ),
                       ),
-                      child: Stack(
-                        fit: StackFit.expand,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Image.network(
-                            'https://lh3.googleusercontent.com/aida-public/AB6AXuBXsmU3gjpQ6m2RkM9Rb-zhgPN6EaqI9SWfzwKNY22_U70xYyh_MbS9wGqwciuzMc8otx2wK_W4yNa0aXsT4Gc3B78u8EhJzHVOaCUgRW1PVGYPulvEcXa0Hc66UDhf9Dx3i9UpJoBCkpq3SVyn3AAfgoKczeien0WLaYZxgZcbLKNYfdgFjEKS346ALdzMnErCkBn3Z4zUE07Mz2PEtQNcIhEs-viedmfbyi4izdnlx_Ndz0X6OZfwScSQvKCY4VuZ7ws3-oaAIp0',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                                  color: AppColors.surface,
-                                  child: const Icon(
-                                    Icons.image_not_supported,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
+                          Text(
+                            'BƯỚC $currentStep',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                              letterSpacing: 2,
+                            ),
                           ),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  AppColors.background.withValues(alpha: 0.6),
-                                ],
-                              ),
+                          const Gap(8),
+                          Text(
+                            currentStepContent,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              height: 1.3,
                             ),
                           ),
                         ],
@@ -78,31 +124,53 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Step Title
-                          const Text(
-                            'Kiểm tra tụ điện',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              height: 1.2,
+                          // Tools Required (if available)
+                          if (errorCode.tools.isNotEmpty) ...[
+                            const Text(
+                              'CÔNG CỤ CẦN THIẾT',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textSecondary,
+                                letterSpacing: 1.0,
+                              ),
                             ),
-                          ),
-                          const Gap(8),
-                          const Text(
-                            'Xác minh tính toàn vẹn điện của tụ khởi động để đảm bảo nó giữ và xả điện tích chính xác.',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppColors.textSecondary,
-                              height: 1.5,
+                            const Gap(12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: errorCode.tools
+                                  .map((tool) => _buildToolChip(tool))
+                                  .toList(),
                             ),
-                          ),
+                            const Gap(24),
+                          ],
 
-                          const Gap(24),
+                          // Components Related (if available)
+                          if (errorCode.components.isNotEmpty) ...[
+                            const Text(
+                              'LINH KIỆN LIÊN QUAN',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textSecondary,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const Gap(12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: errorCode.components
+                                  .map((comp) => _buildComponentChip(comp))
+                                  .toList(),
+                            ),
+                            const Gap(24),
+                          ],
 
-                          // Tools Required
+                          // All Steps Overview
                           const Text(
-                            'CÔNG CỤ CẦN THIẾT',
+                            'TẤT CẢ CÁC BƯỚC',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -111,235 +179,138 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
                             ),
                           ),
                           const Gap(12),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              _buildToolChip(
-                                'Đồng hồ vạn năng',
-                                Icons.electric_meter,
-                              ),
-                              _buildToolChip(
-                                'Tô vít cách điện',
-                                Icons.construction,
-                              ),
-                              _buildToolChip(
-                                'Găng tay bảo hộ',
-                                Icons.back_hand,
-                              ),
-                            ],
-                          ),
+                          ...errorCode.steps.asMap().entries.map((entry) {
+                            final idx = entry.key + 1;
+                            final step = entry.value;
+                            final isCurrentStep = idx == currentStep;
+                            final isCompleted = idx < currentStep;
 
-                          const Gap(24),
-
-                          // Instruction Steps
-                          const Row(
-                            children: [
-                              StepIndicator(number: '1'),
-                              Gap(12),
-                              Text(
-                                'Xả tụ điện',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(
-                              left: 36,
-                              top: 4,
-                              bottom: 16,
-                            ),
-                            child: Text(
-                              'Dùng tô vít cách điện nối tắt các cực của tụ điện với nhau để xả an toàn năng lượng tích trữ.',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-
-                          const Row(
-                            children: [
-                              StepIndicator(number: '2'),
-                              Gap(12),
-                              Text(
-                                'Đo điện trở',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(
-                              left: 36,
-                              top: 4,
-                              bottom: 16,
-                            ),
-                            child: Text(
-                              'Đặt đồng hồ vạn năng về thang đo Ohm (Ω). Đặt que đen vào cực Chung (C) và que đỏ vào cực Herm (H).',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-
-                          const Row(
-                            children: [
-                              StepIndicator(number: '3'),
-                              Gap(12),
-                              Text(
-                                'Quan sát chỉ số',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(
-                              left: 36,
-                              top: 4,
-                              bottom: 16,
-                            ),
-                            child: Text(
-                              'Quan sát màn hình. Điện trở sẽ tăng nhanh rồi giảm về vô cùng (OL).',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-
-                          const Gap(12),
-
-                          // Diagnostic Check
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              return Container(
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  currentStep = idx;
+                                });
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surface,
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: isCurrentStep
+                                      ? AppColors.primary.withValues(alpha: 0.1)
+                                      : AppColors.surface,
+                                  borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: const Color(0xFF1E293B),
+                                    color: isCurrentStep
+                                        ? AppColors.primary
+                                        : const Color(0xFF1E293B),
+                                    width: isCurrentStep ? 2 : 1,
                                   ),
                                 ),
-                                clipBehavior: Clip.antiAlias,
-                                child: Column(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: const BoxDecoration(
-                                        border: Border(
-                                          left: BorderSide(
-                                            color: Colors.amber,
-                                            width: 4,
-                                          ),
-                                        ),
+                                      width: 28,
+                                      height: 28,
+                                      decoration: BoxDecoration(
+                                        color: isCompleted
+                                            ? Colors.green
+                                            : isCurrentStep
+                                            ? AppColors.primary
+                                            : const Color(0xFF334155),
+                                        shape: BoxShape.circle,
                                       ),
-                                      child: const Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.help_outline,
-                                                color: Colors.amber,
-                                                size: 20,
-                                              ),
-                                              Gap(10),
-                                              Text(
-                                                'Kiểm tra chẩn đoán',
+                                      child: Center(
+                                        child: isCompleted
+                                            ? const Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                                size: 16,
+                                              )
+                                            : Text(
+                                                '$idx',
                                                 style: TextStyle(
-                                                  fontSize: 18,
+                                                  color: isCurrentStep
+                                                      ? Colors.white
+                                                      : AppColors.textSecondary,
                                                   fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
+                                                  fontSize: 12,
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                          Gap(8),
-                                          Text(
-                                            'Chỉ số trên đồng hồ có tăng lên rồi giảm về vô cùng không?',
-                                            style: TextStyle(
-                                              color: AppColors.textSecondary,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
                                       ),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        children: [
-                                          _buildDiagnosticOption(
-                                            isCorrect: true,
-                                            text: 'Có, hoạt động đúng',
-                                            actionText: 'ĐẾN BƯỚC 3',
-                                          ),
-                                          const Gap(12),
-                                          _buildDiagnosticOption(
-                                            isCorrect: false,
-                                            text: 'Không, giữ ở 0 hoặc OL',
-                                            actionText: 'THAY THẾ',
-                                          ),
-                                        ],
+                                    const Gap(12),
+                                    Expanded(
+                                      child: Text(
+                                        step,
+                                        style: TextStyle(
+                                          color: isCurrentStep
+                                              ? Colors.white
+                                              : AppColors.textSecondary,
+                                          fontSize: 14,
+                                          height: 1.4,
+                                          fontWeight: isCurrentStep
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
-                          ),
-
-                          const Gap(24),
-
-                          // Warning
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.red.withValues(alpha: 0.2),
                               ),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.warning_amber_rounded,
-                                  color: Colors.red.shade400,
-                                  size: 20,
+                            );
+                          }),
+
+                          // Cause info if available
+                          if (errorCode.cause.isNotEmpty) ...[
+                            const Gap(12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.amber.withValues(alpha: 0.2),
                                 ),
-                                const Gap(12),
-                                Expanded(
-                                  child: Text(
-                                    'Cảnh báo: Nguy hiểm điện cao áp. Đảm bảo đã ngắt nguồn điện tại cầu dao trước khi tiến hành.',
-                                    style: TextStyle(
-                                      color: Colors.red.shade200,
-                                      fontSize: 13,
-                                      height: 1.4,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.lightbulb_outline,
+                                    color: Colors.amber.shade400,
+                                    size: 20,
+                                  ),
+                                  const Gap(12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Nguyên nhân có thể',
+                                          style: TextStyle(
+                                            color: Colors.amber,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const Gap(4),
+                                        Text(
+                                          errorCode.cause,
+                                          style: TextStyle(
+                                            color: Colors.amber.shade200,
+                                            fontSize: 13,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
@@ -354,9 +325,8 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    // Progress calculation
-    final progress = currentStep / totalSteps;
+  Widget _buildHeader(BuildContext context, ErrorCode errorCode) {
+    final progress = totalSteps > 0 ? currentStep / totalSteps : 0.0;
 
     return Container(
       decoration: const BoxDecoration(
@@ -373,11 +343,11 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
                 onPressed: () => context.pop(),
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
               ),
-              const Column(
+              Column(
                 children: [
                   Text(
-                    'LỖI E12',
-                    style: TextStyle(
+                    'MÃ LỖI ${errorCode.code}',
+                    style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.bold,
@@ -385,18 +355,20 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
                     ),
                   ),
                   Text(
-                    'Chẩn đoán động cơ quạt',
-                    style: TextStyle(
-                      fontSize: 16,
+                    errorCode.title,
+                    style: const TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
               IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.list, color: AppColors.primary),
+                onPressed: () => context.pop(),
+                icon: const Icon(Icons.close, color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -438,6 +410,9 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
   }
 
   Widget _buildBottomNavigation() {
+    final isFirstStep = currentStep == 1;
+    final isLastStep = currentStep == totalSteps;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -451,14 +426,22 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
             child: SizedBox(
               height: 52,
               child: OutlinedButton(
-                onPressed: () {
-                  setState(() {
-                    if (currentStep > 1) currentStep--;
-                  });
-                },
+                onPressed: isFirstStep
+                    ? null
+                    : () {
+                        setState(() {
+                          currentStep--;
+                        });
+                      },
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF334155)),
-                  foregroundColor: Colors.white,
+                  side: BorderSide(
+                    color: isFirstStep
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFF334155),
+                  ),
+                  foregroundColor: isFirstStep
+                      ? AppColors.textSecondary
+                      : Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -472,7 +455,7 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
                     Text(
                       'Trước',
                       style: TextStyle(fontWeight: FontWeight.bold),
-                    ), // Shortened for space
+                    ),
                   ],
                 ),
               ),
@@ -485,30 +468,46 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
               height: 52,
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    if (currentStep < totalSteps) currentStep++;
-                  });
+                  if (isLastStep) {
+                    // Hoàn thành - quay về màn hình trước
+                    context.pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Hoàn thành quy trình kiểm tra!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    setState(() {
+                      currentStep++;
+                    });
+                  }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: isLastStep
+                      ? Colors.green
+                      : AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 4,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Bước tiếp theo',
-                      style: TextStyle(
+                      isLastStep ? 'Hoàn thành' : 'Bước tiếp theo',
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
-                    Gap(8),
-                    Icon(Icons.arrow_forward, size: 20),
+                    const Gap(8),
+                    Icon(
+                      isLastStep ? Icons.check : Icons.arrow_forward,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
@@ -519,7 +518,7 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
     );
   }
 
-  Widget _buildToolChip(String label, IconData icon) {
+  Widget _buildToolChip(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -530,7 +529,7 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: AppColors.primary),
+          const Icon(Icons.build, size: 16, color: AppColors.primary),
           const Gap(8),
           Text(
             label,
@@ -545,84 +544,28 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
     );
   }
 
-  Widget _buildDiagnosticOption({
-    required bool isCorrect,
-    required String text,
-    required String actionText,
-  }) {
+  Widget _buildComponentChip(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.5),
+        color: Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(
-                isCorrect ? Icons.check_circle : Icons.cancel,
-                color: isCorrect ? Colors.green : Colors.red,
-                size: 22,
-              ),
-              const Gap(12),
-              Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isCorrect
-                  ? AppColors.primary.withValues(alpha: 0.1)
-                  : Colors.grey.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              actionText,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isCorrect ? AppColors.primary : AppColors.textSecondary,
-              ),
+          const Icon(Icons.memory, size: 16, color: Colors.blue),
+          const Gap(8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.blue,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class StepIndicator extends StatelessWidget {
-  final String number;
-  const StepIndicator({super.key, required this.number});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          number,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
     );
   }

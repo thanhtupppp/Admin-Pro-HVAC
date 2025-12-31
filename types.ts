@@ -59,6 +59,7 @@ export interface ErrorCode {
   images: string[];     // New (replacing single imageUrl)
   videos?: string[];    // New (YouTube Links)
   description?: string; // Backwards compatibility
+  isCommon?: boolean;   // Flag for common errors shown on mobile home
 }
 export interface Brand {
   id: string;

@@ -1,99 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../home/models/error_code_model.dart';
+import 'providers/saved_provider.dart';
 
-class SavedScreen extends StatefulWidget {
+class SavedScreen extends ConsumerStatefulWidget {
   const SavedScreen({super.key});
 
   @override
-  State<SavedScreen> createState() => _SavedScreenState();
+  ConsumerState<SavedScreen> createState() => _SavedScreenState();
 }
 
-class _SavedScreenState extends State<SavedScreen> {
-  // Dummy Data matching HTML
-  late List<ErrorCode> _savedErrorCodes;
-
-  @override
-  void initState() {
-    super.initState();
-    _savedErrorCodes = [
-      ErrorCode(
-        id: '1',
-        code: 'E1',
-        title: 'Lỗi cảm biến',
-        brand: 'Samsung',
-        model: 'Điều hòa',
-        symptom: 'Cảm biến nhiệt độ phòng bị lỗi.',
-        cause: '',
-        components: [],
-        steps: [],
-        status: 'active',
-        severity: 'medium',
-        updatedAt: DateTime.now(),
-      ),
-      ErrorCode(
-        id: '2',
-        code: 'H6',
-        title: 'Lỗi mô tơ quạt',
-        brand: 'LG',
-        model: 'Máy giặt',
-        symptom: 'Quạt không quay.',
-        cause: '',
-        components: [],
-        steps: [],
-        status: 'active',
-        severity: 'high',
-        updatedAt: DateTime.now(),
-      ),
-      ErrorCode(
-        id: '3',
-        code: 'PF',
-        title: 'Lỗi nguồn điện',
-        brand: 'Daikin',
-        model: 'Tủ lạnh',
-        symptom: 'Điện áp không ổn định.',
-        cause: '',
-        components: [],
-        steps: [],
-        status: 'active',
-        severity: 'medium',
-        updatedAt: DateTime.now(),
-      ),
-      ErrorCode(
-        id: '4',
-        code: 'OE',
-        title: 'Lỗi xả nước',
-        brand: 'LG',
-        model: 'Máy rửa bát',
-        symptom: 'Nước không xả ra ngoài.',
-        cause: '',
-        components: [],
-        steps: [],
-        status: 'active',
-        severity: 'low',
-        updatedAt: DateTime.now(),
-      ),
-      ErrorCode(
-        id: '5',
-        code: 'F0',
-        title: 'Rò rỉ môi chất lạnh',
-        brand: 'Gree',
-        model: 'Điều hòa treo tường',
-        symptom: 'Thiếu gas.',
-        cause: '',
-        components: [],
-        steps: [],
-        status: 'active',
-        severity: 'high',
-        updatedAt: DateTime.now(),
-      ),
-    ];
-  }
+class _SavedScreenState extends ConsumerState<SavedScreen> {
+  String _selectedFilter = 'Tất cả';
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
+    final savedErrorsAsync = ref.watch(savedErrorsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -132,7 +59,9 @@ class _SavedScreenState extends State<SavedScreen> {
                     ],
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      // Edit mode could enable multi-select delete
+                    },
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       backgroundColor: AppColors.primary.withValues(alpha: 0.1),
@@ -155,9 +84,14 @@ class _SavedScreenState extends State<SavedScreen> {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const TextField(
-                  style: TextStyle(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
+                child: TextField(
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val;
+                    });
+                  },
+                  decoration: const InputDecoration(
                     icon: Icon(Icons.search, color: AppColors.textSecondary),
                     border: InputBorder.none,
                     hintText: 'Tìm mã lỗi (ví dụ: E1, H6)...',
@@ -173,7 +107,7 @@ class _SavedScreenState extends State<SavedScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  _buildFilterChip('Tất cả', isActive: true),
+                  _buildFilterChip('Tất cả'),
                   const Gap(8),
                   _buildFilterChip('Điều hòa'),
                   const Gap(8),
@@ -184,65 +118,141 @@ class _SavedScreenState extends State<SavedScreen> {
               ),
             ),
 
-            // 4. List Info
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${_savedErrorCodes.length} mục đã lưu',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.green.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.wifi_off, size: 12, color: Colors.green),
-                        Gap(4),
-                        Text(
-                          'SẴN SÀNG OFFLINE',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Gap(8),
-
-            // 5. List
+            // 4. List Content
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                itemCount: _savedErrorCodes.length,
-                separatorBuilder: (_, _) => const Gap(12),
-                itemBuilder: (context, index) {
-                  return _buildSavedItem(_savedErrorCodes[index]);
+              child: savedErrorsAsync.when(
+                data: (errors) {
+                  // Filter list locally
+                  var filteredErrors = errors;
+
+                  if (_selectedFilter != 'Tất cả') {
+                    // Simple heuristic filter mapping
+                    filteredErrors = filteredErrors.where((e) {
+                      final brandModel = '${e.brand} ${e.model}'.toLowerCase();
+                      if (_selectedFilter == 'Điều hòa') {
+                        return brandModel.contains('điều hòa') ||
+                            brandModel.contains('air conditioner');
+                      } else if (_selectedFilter == 'Máy giặt') {
+                        return brandModel.contains('máy giặt') ||
+                            brandModel.contains('washer');
+                      } else if (_selectedFilter == 'Tủ lạnh') {
+                        return brandModel.contains('tủ lạnh') ||
+                            brandModel.contains('fridge');
+                      }
+                      return true;
+                    }).toList();
+                  }
+
+                  if (_searchQuery.isNotEmpty) {
+                    filteredErrors = filteredErrors.where((e) {
+                      return e.code.toLowerCase().contains(
+                            _searchQuery.toLowerCase(),
+                          ) ||
+                          e.title.toLowerCase().contains(
+                            _searchQuery.toLowerCase(),
+                          );
+                    }).toList();
+                  }
+
+                  if (filteredErrors.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.bookmark_border,
+                            size: 64,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                          const Gap(16),
+                          Text(
+                            errors.isEmpty
+                                ? 'Chưa có lỗi nào được lưu'
+                                : 'Không tìm thấy kết quả',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 4,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${filteredErrors.length} mục đã lưu',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            // Offline badge simulated
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.green.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.wifi_off,
+                                    size: 12,
+                                    color: Colors.green,
+                                  ),
+                                  Gap(4),
+                                  Text(
+                                    'SẴN SÀNG OFFLINE',
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          itemCount: filteredErrors.length,
+                          separatorBuilder: (_, _) => const Gap(12),
+                          itemBuilder: (context, index) {
+                            return _buildSavedItem(filteredErrors[index]);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
                 },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) =>
+                    Center(child: Text('Lỗi tải dữ liệu: $err')),
               ),
             ),
           ],
@@ -251,46 +261,46 @@ class _SavedScreenState extends State<SavedScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, {bool isActive = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isActive ? AppColors.primary : AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: isActive
-            ? null
-            : Border.all(color: AppColors.textSecondary.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isActive ? Colors.white : AppColors.textSecondary,
-          fontWeight: FontWeight.w500,
-          fontSize: 13,
+  Widget _buildFilterChip(String label) {
+    final isActive = _selectedFilter == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedFilter = label;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: isActive
+              ? null
+              : Border.all(
+                  color: AppColors.textSecondary.withValues(alpha: 0.2),
+                ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+            fontSize: 13,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSavedItem(ErrorCode item) {
+    // Dynamic color based on brand roughly
     Color itemColor = AppColors.primary;
-    Color bgColor = AppColors.primary.withValues(alpha: 0.1);
-    Color borderColor = AppColors.primary.withValues(alpha: 0.1);
+    if (item.brand.toLowerCase().contains('lg')) itemColor = Colors.red;
+    if (item.brand.toLowerCase().contains('daikin')) itemColor = Colors.blue;
+    if (item.brand.toLowerCase().contains('gree')) itemColor = Colors.green;
 
-    // Hardcode styling based on HTML example logic
-    if (item.code == 'H6') {
-      itemColor = Colors.red;
-      bgColor = Colors.red.withValues(alpha: 0.1);
-      borderColor = Colors.red.withValues(alpha: 0.1);
-    } else if (item.code == 'PF') {
-      itemColor = Colors.amber;
-      bgColor = Colors.amber.withValues(alpha: 0.1);
-      borderColor = Colors.amber.withValues(alpha: 0.1);
-    } else if (item.code == 'OE') {
-      itemColor = AppColors.textSecondary;
-      bgColor = AppColors.surface;
-      borderColor = AppColors.textSecondary.withValues(alpha: 0.3);
-    }
+    Color bgColor = itemColor.withValues(alpha: 0.1);
+    Color borderColor = itemColor.withValues(alpha: 0.2);
 
     return GestureDetector(
       onTap: () {
@@ -320,7 +330,7 @@ class _SavedScreenState extends State<SavedScreen> {
                   item.code,
                   style: TextStyle(
                     color: itemColor,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -350,29 +360,20 @@ class _SavedScreenState extends State<SavedScreen> {
                     ),
                   ),
                   const Gap(6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.menu_book,
-                        size: 14,
-                        color: AppColors.primary,
-                      ),
-                      const Gap(4),
-                      const Text(
-                        'Xem hướng dẫn',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: () {
+                // Remove from saved
+                ref.read(savedIdsProvider.notifier).toggle(item.id);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Đã xóa khỏi mục yêu thích'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
               icon: const Icon(
                 Icons.bookmark_remove,
                 color: AppColors.textSecondary,

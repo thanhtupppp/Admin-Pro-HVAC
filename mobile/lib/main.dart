@@ -22,7 +22,6 @@ import 'features/saved/saved_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/error_detail/error_detail_screen.dart';
-import 'features/troubleshoot/troubleshoot_screen.dart';
 import 'features/home/models/error_code_model.dart';
 import 'features/subscription/presentation/subscription_screen.dart';
 import 'features/subscription/presentation/payment_screen.dart';
@@ -137,12 +136,6 @@ final _router = GoRouter(
                     final error = state.extra as ErrorCode;
                     return ErrorDetailScreen(errorCode: error);
                   },
-                  routes: [
-                    GoRoute(
-                      path: 'troubleshoot',
-                      builder: (context, state) => const TroubleshootScreen(),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -162,12 +155,6 @@ final _router = GoRouter(
                     final error = state.extra as ErrorCode;
                     return ErrorDetailScreen(errorCode: error);
                   },
-                  routes: [
-                    GoRoute(
-                      path: 'troubleshoot',
-                      builder: (context, state) => const TroubleshootScreen(),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -187,12 +174,6 @@ final _router = GoRouter(
                     final error = state.extra as ErrorCode;
                     return ErrorDetailScreen(errorCode: error);
                   },
-                  routes: [
-                    GoRoute(
-                      path: 'troubleshoot',
-                      builder: (context, state) => const TroubleshootScreen(),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -212,12 +193,6 @@ final _router = GoRouter(
                     final error = state.extra as ErrorCode;
                     return ErrorDetailScreen(errorCode: error);
                   },
-                  routes: [
-                    GoRoute(
-                      path: 'troubleshoot',
-                      builder: (context, state) => const TroubleshootScreen(),
-                    ),
-                  ],
                 ),
               ],
             ),
