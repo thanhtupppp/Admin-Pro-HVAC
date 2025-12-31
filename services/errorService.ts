@@ -12,19 +12,29 @@ import {
 
 export const errorService = {
     getErrors: async (): Promise<ErrorCode[]> => {
-        const querySnapshot = await getDocs(collection(db, 'errors'));
+        const querySnapshot = await getDocs(collection(db, 'error_codes'));
         const errors: ErrorCode[] = [];
         querySnapshot.forEach((doc) => {
-            errors.push({ id: doc.id, ...doc.data() } as ErrorCode);
+            const data = doc.data();
+            // Handle Firestore Timestamp conversion if necessary
+            const updatedAt = data.updatedAt && typeof data.updatedAt.toDate === 'function' 
+                ? data.updatedAt.toDate().toISOString().split('T')[0] 
+                : data.updatedAt;
+                
+            errors.push({ id: doc.id, ...data, updatedAt } as ErrorCode);
         });
         return errors;
     },
 
     getErrorById: async (id: string): Promise<ErrorCode | undefined> => {
-        const docRef = doc(db, 'errors', id);
+        const docRef = doc(db, 'error_codes', id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as ErrorCode;
+            const data = docSnap.data();
+            const updatedAt = data.updatedAt && typeof data.updatedAt.toDate === 'function'
+                ? data.updatedAt.toDate().toISOString().split('T')[0]
+                : data.updatedAt;
+            return { id: docSnap.id, ...data, updatedAt } as ErrorCode;
         }
         return undefined;
     },
@@ -34,12 +44,12 @@ export const errorService = {
             ...errorData,
             updatedAt: new Date().toISOString().split('T')[0]
         };
-        const docRef = await addDoc(collection(db, 'errors'), newError);
-        return { id: docRef.id, ...newError };
+        const docRef = await addDoc(collection(db, 'error_codes'), newError);
+        return { id: docRef.id, ...newError } as ErrorCode;
     },
 
     updateError: async (id: string, updates: Partial<ErrorCode>): Promise<ErrorCode> => {
-        const docRef = doc(db, 'errors', id);
+        const docRef = doc(db, 'error_codes', id);
         const dataToUpdate = {
             ...updates,
             updatedAt: new Date().toISOString().split('T')[0]
@@ -55,6 +65,6 @@ export const errorService = {
     },
 
     deleteError: async (id: string): Promise<void> => {
-        await deleteDoc(doc(db, 'errors', id));
+        await deleteDoc(doc(db, 'error_codes', id));
     }
 };

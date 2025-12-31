@@ -1,5 +1,5 @@
 import { Notification, ActivityEntry } from '../types';
-import { collection, query, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, onSnapshot, where } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
 export const notificationService = {
@@ -59,6 +59,22 @@ export const notificationService = {
     },
 
     /**
+     * Convert Transaction thành Notification
+     */
+    transactionToNotification: (tx: any): Notification => {
+        return {
+            id: tx.id,
+            type: 'warning', // Warning for pending money
+            title: 'Thanh toán mới',
+            message: `User ${tx.userEmail || tx.userId} vừa báo đã chuyển khoản gói ${tx.planName || tx.planId}. Số tiền: ${tx.amount.toLocaleString()}₫`,
+            timestamp: tx.createdAt,
+            read: tx.status !== 'pending', // Assume read if not pending
+            icon: 'payments',
+            activityId: tx.id // Using tx.id as identifier
+        };
+    },
+
+    /**
      * Lấy danh sách notifications (từ ActivityLog)
      */
     getNotifications: async (limitCount: number = 20): Promise<Notification[]> => {
@@ -91,23 +107,50 @@ export const notificationService = {
         callback: (notifications: Notification[]) => void,
         limitCount: number = 20
     ) => {
-        const q = query(
+        let activities: Notification[] = [];
+        let transactions: Notification[] = [];
+
+        const updateAll = () => {
+            const combined = [...activities, ...transactions]
+                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                .slice(0, limitCount);
+            callback(combined);
+        };
+
+        const qActivity = query(
             collection(db, 'activityLog'),
             orderBy('timestamp', 'desc'),
             limit(limitCount)
         );
 
-        return onSnapshot(q, (querySnapshot) => {
-            const activities: ActivityEntry[] = [];
-            querySnapshot.forEach((doc) => {
-                activities.push({ id: doc.id, ...doc.data() } as ActivityEntry);
-            });
+        const qTx = query(
+            collection(db, 'transactions'),
+            where('status', '==', 'pending')
+        );
 
-            const notifications = activities.map(activity =>
-                notificationService.activityToNotification(activity)
+        const unsubActivity = onSnapshot(qActivity, (snapshot) => {
+            activities = snapshot.docs.map(doc => 
+                notificationService.activityToNotification({ id: doc.id, ...doc.data() } as ActivityEntry)
             );
-
-            callback(notifications);
+            updateAll();
+        }, (error) => {
+            console.error("Activity Notification Error:", error);
         });
+
+        const unsubTx = onSnapshot(qTx, (snapshot) => {
+            transactions = snapshot.docs.map(doc => 
+                notificationService.transactionToNotification({ id: doc.id, ...doc.data() })
+            );
+            updateAll();
+        }, (error) => {
+            console.error("Transaction Notification Error (Likely missing index):", error);
+            // Fallback: try without orderBy if it fails? 
+            // Actually qTx above doesn't have orderBy, so it shouldn't fail.
+        });
+
+        return () => {
+            unsubActivity();
+            unsubTx();
+        };
     }
 };

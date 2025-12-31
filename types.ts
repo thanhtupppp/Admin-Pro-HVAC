@@ -4,13 +4,15 @@ export enum ViewType {
   DASHBOARD = 'DASHBOARD',
   ERROR_LIST = 'ERROR_LIST',
   ERROR_EDIT = 'ERROR_EDIT',
+  DOCUMENT_MANAGER = 'DOCUMENT_MANAGER',
   OCR_TOOL = 'OCR_TOOL',
   BRAND_MANAGER = 'BRAND_MANAGER',
   USER_MANAGER = 'USER_MANAGER',
   PLAN_MANAGER = 'PLAN_MANAGER',
   SETTINGS = 'SETTINGS',
   ACTIVITY_LOG = 'ACTIVITY_LOG',
-  SYSTEM_UPDATE = 'SYSTEM_UPDATE'
+  SYSTEM_UPDATE = 'SYSTEM_UPDATE',
+  TRANSACTIONS = 'TRANSACTIONS'
 }
 
 export interface SystemVersion {
@@ -41,20 +43,22 @@ export interface ActivityEntry {
 }
 
 export interface ErrorCode {
-  id: string;
-  code: string;
-  model: string;
-  brand: string;
-  title: string;
-  symptom: string;
-  cause: string;
-  components: string[];
-  steps: string[];
-  status: 'active' | 'pending' | 'draft';
-  severity: 'high' | 'medium' | 'low';
-  updatedAt: string;
+    id: string;
+    code: string;
+    title: string;
+    brand: string;
+    model: string;
+    symptom: string;
+    cause: string;
+    status: 'active' | 'pending' | 'draft';
+    severity: 'high' | 'medium' | 'low';
+    updatedAt: string;
+    steps: string[];
+    components: string[]; // New
+    tools: string[];      // New
+    images: string[];     // New (replacing single imageUrl)
+    description?: string; // Backwards compatibility
 }
-
 export interface Brand {
   id: string;
   name: string;
@@ -73,12 +77,16 @@ export interface Model {
 export interface AdminUser {
   id: string;
   username: string;
+  name?: string; // Full name from mobile signup
   email: string;
   role: string;
   status: 'active' | 'locked';
   avatar?: string;
   lastLogin: string;
   plan?: 'Free' | 'Premium' | 'Internal';
+  planId?: string;
+  planName?: string;
+  planExpiresAt?: string; // ISO Date String
 }
 
 export interface SubscriptionPlan {
@@ -146,6 +154,7 @@ export interface Transaction {
   userId: string;
   userEmail: string;
   planId: string;
+  planName: string;
   amount: number;
   status: 'pending' | 'completed' | 'failed' | 'rejected';
   paymentMethod: 'vietqr' | 'momo' | 'banking';

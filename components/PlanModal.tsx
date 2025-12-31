@@ -13,6 +13,7 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
         displayName: '',
         price: 0,
         billingCycle: 'monthly',
+        tier: 'Premium',
         description: '',
         features: [],
         badge: '',
@@ -32,8 +33,9 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
                 displayName: plan.displayName,
                 price: plan.price,
                 billingCycle: plan.billingCycle,
+                tier: plan.tier || 'Premium',
                 description: plan.description,
-                features: plan.features,
+                features: plan.features || [], // Safe fallback
                 badge: plan.badge || '',
                 badgeColor: plan.badgeColor || 'primary',
                 popular: plan.popular || false,
@@ -44,25 +46,27 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
 
     const handleAddFeature = () => {
         if (featureInput.trim()) {
-            setFormData({
-                ...formData,
-                features: [...formData.features, { label: featureInput.trim(), enabled: true }]
-            });
+            setFormData(prev => ({
+                ...prev,
+                features: [...(prev.features || []), { label: featureInput.trim(), enabled: true }]
+            }));
             setFeatureInput('');
         }
     };
 
     const handleRemoveFeature = (index: number) => {
-        setFormData({
-            ...formData,
-            features: formData.features.filter((_, i) => i !== index)
-        });
+        setFormData(prev => ({
+            ...prev,
+            features: prev.features.filter((_, i) => i !== index)
+        }));
     };
 
     const handleToggleFeature = (index: number) => {
-        const updated = [...formData.features];
-        updated[index].enabled = !updated[index].enabled;
-        setFormData({ ...formData, features: updated });
+        setFormData(prev => {
+            const updated = [...prev.features];
+            updated[index].enabled = !updated[index].enabled;
+            return { ...prev, features: updated };
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -146,8 +150,8 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
                         </div>
                     </div>
 
-                    {/* Price & Billing */}
-                    <div className="grid grid-cols-2 gap-6">
+                    {/* Price, Billing & Tier */}
+                    <div className="grid grid-cols-3 gap-6">
                         <div>
                             <label className="block text-xs font-bold text-white uppercase tracking-widest mb-2">
                                 Giá (VNĐ)
@@ -163,7 +167,7 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-white uppercase tracking-widest mb-2">
-                                Chu kỳ thanh toán
+                                Chu kỳ
                             </label>
                             <select
                                 value={formData.billingCycle}
@@ -173,6 +177,20 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
                                 <option value="monthly">Tháng</option>
                                 <option value="yearly">Năm</option>
                                 <option value="lifetime">Trọn đời</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-white uppercase tracking-widest mb-2">
+                                Loại gói (Tier)
+                            </label>
+                            <select
+                                value={formData.tier}
+                                onChange={(e) => setFormData({ ...formData, tier: e.target.value as any })}
+                                className="w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white text-sm focus:outline-none focus:border-primary transition-colors"
+                            >
+                                <option value="Free">Free</option>
+                                <option value="Premium">Premium</option>
+                                <option value="Internal">Internal</option>
                             </select>
                         </div>
                     </div>

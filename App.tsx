@@ -2,13 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
+import DocumentManager from './components/DocumentManager'; // New component
 import ErrorEdit from './components/ErrorEdit';
 import ErrorList from './components/ErrorList';
-import OCRTool from './components/OCRTool';
+import SmartErrorImport from './components/SmartErrorImport';
 import UserManager from './components/UserManager';
 import PlanManager from './components/PlanManager';
 import BrandManager from './components/BrandManager';
 import ActivityLog from './components/ActivityLog';
+import TransactionHistory from './components/TransactionHistory';
 import Settings from './components/Settings';
 import AISmartAssistant from './components/AISmartAssistant';
 import Login from './components/Login';
@@ -104,13 +106,17 @@ const App: React.FC = () => {
       case ViewType.ERROR_EDIT:
         return <ErrorEdit onCancel={() => setCurrentView(ViewType.ERROR_LIST)} onSave={() => addToast("Đã lưu thay đổi", "success")} />;
       case ViewType.OCR_TOOL:
-        return <OCRTool onSave={() => addToast("Đã nhập dữ liệu vào hệ thống", "success")} />;
+        return <SmartErrorImport />;
+      case ViewType.DOCUMENT_MANAGER:
+        return <DocumentManager />;
       case ViewType.BRAND_MANAGER:
         return <BrandManager />;
       case ViewType.ACTIVITY_LOG:
         return <ActivityLog />;
       case ViewType.SYSTEM_UPDATE:
         return <SystemUpdate />;
+      case ViewType.TRANSACTIONS:
+        return <TransactionHistory />;
       case ViewType.SETTINGS:
         return <Settings onSave={() => addToast("Cài đặt đã được cập nhật", "success")} />;
       default:

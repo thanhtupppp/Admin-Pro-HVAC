@@ -65,7 +65,9 @@ export const authService = {
 
             let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
 
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+            if (error.code === 'auth/user-not-found' || 
+                error.code === 'auth/wrong-password' || 
+                error.code === 'auth/invalid-credential') {
                 errorMessage = 'Email hoặc mật khẩu không đúng.';
             } else if (error.code === 'auth/invalid-email') {
                 errorMessage = 'Email không hợp lệ.';

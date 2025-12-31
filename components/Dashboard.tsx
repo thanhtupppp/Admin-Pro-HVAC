@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { errorService } from '../services/errorService';
 import { brandService } from '../services/brandService';
 import { userService } from '../services/userService';
+import { paymentService } from '../services/paymentService';
 import { ErrorCode } from '../types';
 import DashboardCharts from './DashboardCharts';
 
@@ -10,7 +11,8 @@ const Dashboard: React.FC = () => {
     errors: 0,
     brands: 0,
     users: 0,
-    pending: 0
+    pending: 0,
+    pendingTransactions: 0
   });
   const [recentErrors, setRecentErrors] = useState<ErrorCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,17 +20,19 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [errors, brands, users] = await Promise.all([
+        const [errors, brands, users, transactions] = await Promise.all([
           errorService.getErrors(),
           brandService.getBrands(),
-          userService.getUsers()
+          userService.getUsers(),
+          paymentService.getTransactions()
         ]);
 
         setStats({
           errors: errors.length,
           brands: brands.length,
           users: users.length,
-          pending: errors.filter(e => e.status === 'pending').length
+          pending: errors.filter(e => e.status === 'pending').length,
+          pendingTransactions: transactions.filter(t => t.status === 'pending').length
         });
 
         // Take last 5 errors (or top 5 depending on sorting, assuming current order is relevant)
@@ -49,6 +53,7 @@ const Dashboard: React.FC = () => {
           { label: 'Tổng mã lỗi', value: isLoading ? '...' : stats.errors, change: '+12%', color: 'blue', icon: 'error' },
           { label: 'Chờ duyệt', value: isLoading ? '...' : stats.pending, change: 'Cao', color: 'orange', icon: 'pending_actions' },
           { label: 'Hãng sản xuất', value: isLoading ? '...' : stats.brands, change: '+2 mới', color: 'purple', icon: 'business' },
+          { label: 'Thanh toán mới', value: isLoading ? '...' : stats.pendingTransactions, change: stats.pendingTransactions > 0 ? 'Cần xử lý' : 'Ổn định', color: 'yellow', icon: 'payments' },
           { label: 'Quản trị viên', value: isLoading ? '...' : stats.users, change: 'Online', color: 'green', icon: 'group' },
         ].map((stat, i) => (
           <div key={i} className="bg-surface-dark border border-border-dark/50 rounded-2xl p-5 hover:border-primary/50 transition-colors cursor-default group">

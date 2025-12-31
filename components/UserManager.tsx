@@ -34,8 +34,8 @@ const UserManager: React.FC = () => {
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       const matchesSearch =
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesRole = selectedRole === 'All' || user.role === selectedRole;
       return matchesSearch && matchesRole;
     });
@@ -212,11 +212,12 @@ const UserManager: React.FC = () => {
         <div className="bg-surface-dark border border-border-dark/50 rounded-2xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left whitespace-nowrap">
-              <thead className="bg-background-dark/50 border-b border-border-dark/30 text-text-secondary uppercase text-[10px] font-bold tracking-widest">
+                  <thead className="bg-background-dark/50 border-b border-border-dark/30 text-text-secondary uppercase text-[10px] font-bold tracking-widest">
                 <tr>
                   <th className="px-6 py-4">Người dùng</th>
                   <th className="px-6 py-4">Vai trò</th>
                   <th className="px-6 py-4 text-center">Gói dịch vụ</th>
+                  <th className="px-6 py-4">Hạn dùng</th>
                   <th className="px-6 py-4">Trạng thái</th>
                   <th className="px-6 py-4">Truy cập cuối</th>
                   <th className="px-6 py-4 text-right">Hành động</th>
@@ -231,7 +232,9 @@ const UserManager: React.FC = () => {
                           {user.avatar}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-white text-sm">@{user.username}</span>
+                          <span className="font-bold text-white text-sm">
+                            {user.name || `@${user.username || 'user'}`}
+                          </span>
                           <span className="text-xs text-text-secondary">{user.email}</span>
                         </div>
                       </div>
@@ -248,6 +251,28 @@ const UserManager: React.FC = () => {
                       <div className="flex justify-center">
                         {getPlanBadge(user.plan)}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {user.planExpiresAt ? (
+                        <div className="flex flex-col">
+                          <span className="text-xs text-white font-medium">
+                            {new Date(user.planExpiresAt).toLocaleDateString('vi-VN')}
+                          </span>
+                          <span className={`text-[10px] font-bold ${
+                            new Date(user.planExpiresAt).getTime() < Date.now() 
+                              ? 'text-red-500' 
+                              : (new Date(user.planExpiresAt).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000)
+                                ? 'text-orange-400'
+                                : 'text-text-secondary'
+                          }`}>
+                            {new Date(user.planExpiresAt).getTime() < Date.now() 
+                              ? 'Hết hạn' 
+                              : `Còn ${Math.ceil((new Date(user.planExpiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000))} ngày`}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-text-secondary">Vĩnh viễn</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

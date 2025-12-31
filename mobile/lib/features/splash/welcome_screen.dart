@@ -40,10 +40,10 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const Spacer(),
 
-              // Hero Image (Placeholder)
+              // Hero Image
               Container(
                 height: 320,
                 width: double.infinity,
@@ -51,7 +51,7 @@ class WelcomeScreen extends StatelessWidget {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(24),
                   image: const DecorationImage(
-                    image: NetworkImage('https://images.unsplash.com/photo-1581092921461-eab6245d8b20?w=800&q=80'), // Placeholder Tech Image
+                    image: AssetImage('assets/images/welcome_hero.png'),
                     fit: BoxFit.cover,
                   ),
                 ),

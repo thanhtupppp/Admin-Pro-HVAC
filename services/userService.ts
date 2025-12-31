@@ -26,6 +26,20 @@ export const userService = {
         }
     },
 
+    getUser: async (id: string): Promise<AdminUser | null> => {
+        try {
+            const docRef = doc(db, 'users', id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                return { id: docSnap.id, ...docSnap.data() } as AdminUser;
+            }
+            return null;
+        } catch (e) {
+            console.error("Get user failed", e);
+            return null;
+        }
+    },
+
     createUser: async (userData: Omit<AdminUser, 'id' | 'lastLogin' | 'avatar'>): Promise<AdminUser> => {
         const calculateAvatar = (name: string) => {
             if (!name) return '??';

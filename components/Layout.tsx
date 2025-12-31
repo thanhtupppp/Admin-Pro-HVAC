@@ -6,7 +6,10 @@ import { auth } from '../services/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { userService } from '../services/userService';
 import { notificationService } from '../services/notificationService';
+import { paymentService } from '../services/paymentService';
 import NotificationPanel from './NotificationPanel';
+
+const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
 interface LayoutProps {
   currentView: ViewType;
@@ -20,6 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingTxCount, setPendingTxCount] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -44,13 +48,42 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
 
   // Subscribe notifications real-time
   useEffect(() => {
+    let lastCount = 0;
+    const audio = new Audio(NOTIFICATION_SOUND_URL);
+    audio.volume = 0.5;
+
     const unsubscribe = notificationService.subscribeNotifications((notifs) => {
       setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.read).length);
+      const newUnreadCount = notifs.filter(n => !n.read).length;
+      
+      // Play sound if unread count increased
+      if (newUnreadCount > lastCount) {
+        audio.play().catch(e => console.log('Autoplay blocked or audio failed:', e));
+      }
+      
+      setUnreadCount(newUnreadCount);
+      lastCount = newUnreadCount;
     }, 15);
 
     return () => unsubscribe();
   }, []);
+
+  // Fetch pending transactions count
+  useEffect(() => {
+    const fetchPendingTx = async () => {
+      try {
+        const txs = await paymentService.getTransactionsByStatus('pending');
+        setPendingTxCount(txs.length);
+      } catch (e) {
+        console.error('Error fetching pending tx count', e);
+      }
+    };
+    fetchPendingTx();
+
+    // Auto refresh every 30 seconds for pending tx
+    const interval = setInterval(fetchPendingTx, 30000);
+    return () => clearInterval(interval);
+  }, [currentView]);
 
   const handleMarkAllRead = () => {
     // Mark all as read (update state locally)
@@ -85,7 +118,12 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
               <span className={`material-symbols-outlined ${currentView === item.id ? 'text-white' : 'group-hover:text-white'}`}>
                 {item.icon}
               </span>
-              <span className="font-medium text-sm">{item.label}</span>
+              <span className="font-medium text-sm flex-1">{item.label}</span>
+              {item.id === ViewType.TRANSACTIONS && pendingTxCount > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                  {pendingTxCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -163,7 +201,12 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
             onClick={() => onNavigate(item.id)}
             className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${currentView === item.id ? 'text-primary' : 'text-text-secondary'}`}
           >
-            <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+            <div className="relative">
+              <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+              {item.id === ViewType.TRANSACTIONS && pendingTxCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              )}
+            </div>
             <span className="text-[10px] font-medium">{item.label}</span>
           </button>
         ))}

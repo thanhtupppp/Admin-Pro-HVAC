@@ -21,7 +21,7 @@ Nguyên tắc trả lời:
 Bạn có quyền truy cập vào Context (Ngữ cảnh) hiện tại của người dùng. Hãy sử dụng nó để đưa ra câu trả lời sát thực tế nhất.
 `;
 
-export const analyzeFileContent = async (base64Data: string, mimeType: string, prompt: string = "") => {
+export const analyzeFileContent = async (base64Data: string, mimeType: string, context: string = "") => {
   const ai = getAIClient();
   const filePart = {
     inlineData: {
@@ -31,15 +31,19 @@ export const analyzeFileContent = async (base64Data: string, mimeType: string, p
   };
 
   const textPart = {
-    text: prompt || `Hãy phân tích tài liệu kỹ thuật này. 
-    Nếu là PDF hoặc ảnh chụp lỗi, hãy trích xuất thông tin mã lỗi theo cấu trúc JSON:
+    text: `Hãy đóng vai chuyên gia kỹ thuật HVAC.
+    Bối cảnh thiết bị: ${context || "Không xác định (hãy tự nhận diện)"}.
+    Nhiệm vụ: Phân tích tài liệu/ảnh chụp mã lỗi này để trích xuất dữ liệu chuẩn hóa.
+    
+    Yêu cầu đầu ra JSON chính xác:
     {
       "code": "Mã lỗi (ví dụ: E4)",
-      "title": "Tên lỗi ngắn gọn",
-      "symptom": "Mô tả hiện tượng",
-      "cause": "Nguyên nhân kỹ thuật",
-      "components": ["Danh sách linh kiện cần kiểm tra"],
-      "steps": ["Các bước khắc phục 1", "Các bước khắc phục 2"],
+      "title": "Tên lỗi ngắn gọn tiếng Việt",
+      "symptom": "Mô tả hiện tượng (ngắn gọn)",
+      "cause": "Nguyên nhân kỹ thuật (chi tiết)",
+      "components": ["Linh kiện 1", "Linh kiện 2"],
+      "steps": ["Bước 1: ...", "Bước 2: ..."],
+      "tools": ["Ampe kìm", "Đồng hồ gas", ...],
       "hasImage": boolean
     }`
   };

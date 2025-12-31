@@ -23,6 +23,7 @@ export interface Plan {
     displayName: string;
     price: number;
     billingCycle: 'monthly' | 'yearly' | 'lifetime';
+    tier: 'Free' | 'Premium' | 'Internal';
     description: string;
     features: PlanFeature[];
     badge?: string; // "Phổ biến nhất", "Mặc định"
@@ -132,6 +133,7 @@ export const planService = {
                 displayName: 'Gói Miễn phí',
                 price: 0,
                 billingCycle: 'lifetime',
+                tier: 'Free',
                 description: 'Dành cho kỹ thuật viên mới',
                 badge: 'Mặc định',
                 badgeColor: 'gray',
@@ -150,6 +152,7 @@ export const planService = {
                 displayName: 'Gói Chuyên nghiệp',
                 price: 199000,
                 billingCycle: 'monthly',
+                tier: 'Premium',
                 description: 'Full quyền năng cho thợ chuyên nghiệp',
                 badge: 'Phổ biến nhất',
                 badgeColor: 'primary',

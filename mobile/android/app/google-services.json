@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "385210564068",
+    "project_id": "admin-pro-hvac",
+    "storage_bucket": "admin-pro-hvac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:385210564068:android:faf0d131553dd1c1991bf1",
+        "android_client_info": {
+          "package_name": "com.thanhtu.adminpro.admin_pro_mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "385210564068-fbrgmq3f0mev5jrnf3aua5o9tf34scnn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzHPtVWTMXCwwo5tPbhVWW78JTM4cdJjo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "385210564068-fbrgmq3f0mev5jrnf3aua5o9tf34scnn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -55,12 +55,16 @@ const TransactionHistory: React.FC = () => {
         }
     };
 
-    const getMethodBadge = (method: Transaction['method']) => {
+    const getMethodBadge = (method: Transaction['paymentMethod']) => {
         switch (method) {
-            case 'bank_transfer':
+            case 'vietqr':
+                return <span className="text-xs text-text-secondary flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">qr_code_2</span> VietQR</span>;
+            case 'momo':
+                return <span className="text-xs text-text-secondary flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">account_balance_wallet</span> Ví MoMo</span>;
+            case 'banking':
                 return <span className="text-xs text-text-secondary flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">account_balance</span> Chuyển khoản</span>;
-            case 'credit_card':
-                return <span className="text-xs text-text-secondary flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">credit_card</span> Thẻ tín dụng</span>;
+            default:
+                return <span className="text-xs text-text-secondary">{method}</span>;
         }
     };
 
@@ -125,26 +129,28 @@ const TransactionHistory: React.FC = () => {
                                     <tr key={tx.id} className="group hover:bg-white/[0.01] transition-colors">
                                         <td className="px-6 py-4">
                                             <div>
-                                                <p className="text-sm font-bold text-white">{tx.userId}</p>
-                                                <p className="text-xs text-text-secondary">{tx.description}</p>
+                                                <p className="text-sm font-bold text-white">{tx.userEmail || tx.userId}</p>
+                                                <p className="text-[10px] text-text-secondary font-mono">{tx.id}</p>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-sm text-white font-medium">{tx.planId}</span>
+                                            <span className="text-sm text-white font-medium">
+                                                {tx.planName && tx.planName.trim() !== "" ? tx.planName : `Gói ${tx.planId.substring(0, 8)}...`}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="text-sm font-bold text-primary">{tx.amount.toLocaleString()}₫</span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {getMethodBadge(tx.method)}
+                                            {getMethodBadge(tx.paymentMethod)}
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             {getStatusBadge(tx.status)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-xs text-text-secondary">
-                                                <p>{new Date(tx.date).toLocaleDateString('vi-VN')}</p>
-                                                <p>{new Date(tx.date).toLocaleTimeString('vi-VN')}</p>
+                                                <p>{new Date(tx.createdAt).toLocaleDateString('vi-VN')}</p>
+                                                <p>{new Date(tx.createdAt).toLocaleTimeString('vi-VN')}</p>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
