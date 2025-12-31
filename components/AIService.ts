@@ -58,24 +58,24 @@ export const analyzeFileContent = async (base64Data: string, mimeType: string, c
 
   const textPart = {
     text: `Bạn là kỹ sư HVAC chuyên nghiệp.
-    Phân tích tài liệu kỹ thuật / hình ảnh dưới đây.
+    Phân tích tài liệu kỹ thuật / hình ảnh / PDF dưới đây.
     Ngữ cảnh thiết bị: ${context || "Tự động xác định"}.
 
-    ⚠️ Ưu tiên:
-    - Mã lỗi chính xác (Error Code)
-    - Mạch điện, bo PCB, sensor, Block, Gas
-    - Chuẩn kỹ thuật điều hòa dân dụng & công nghiệp
-    - Ngôn ngữ: TIẾNG VIỆT 100%
+    ⚠️ Yêu cầu quan trọng:
+    1. Chỉ trích xuất thông tin của Một Mã Lỗi nổi bật nhất nếu tài liệu có nhiều lỗi.
+    2. Nội dung ngắn gọn, súc tích (Max 5 bước khắc phục).
+    3. Trả về format JSON thô (Raw JSON), KHÔNG dùng Markdown block (\`\`\`json).
+    4. Ngôn ngữ: TIẾNG VIỆT 100%.
 
-    Xuất kết quả JSON đúng schema sau:
+    Schema JSON kết quả:
     {
-      "code": "Mã lỗi (VD: E1, U4...)",
-      "title": "Tên lỗi tiếng Việt ngắn gọn",
-      "symptom": "Hiện tượng (VD: Máy chớp đèn, không lạnh...)",
-      "cause": "Nguyên nhân kỹ thuật chi tiết",
-      "components": ["Linh kiện liên quan 1", "Linh kiện 2"],
-      "steps": ["Bước 1: Kiểm tra...", "Bước 2: Thay thế..."],
-      "tools": ["Dụng cụ 1", "Dụng cụ 2"],
+      "code": "Mã lỗi (VD: E1...)",
+      "title": "Tên lỗi",
+      "symptom": "Hiện tượng ngắn gọn",
+      "cause": "Nguyên nhân (Max 2 câu)",
+      "components": ["Linh kiện 1", "Linh kiện 2"],
+      "steps": ["Bước 1...", "Bước 2..."],
+      "tools": ["Dụng cụ 1"],
       "hasImage": boolean
     }`
   };
@@ -92,30 +92,89 @@ export const analyzeFileContent = async (base64Data: string, mimeType: string, c
       ],
       config: {
         responseMimeType: "application/json",
-        temperature: 0.3,
-        maxOutputTokens: 4096,
+        temperature: 0.1,
+        maxOutputTokens: 8192, // Increased for PDF content
       }
     });
 
-    // Parse JSON with error handling for truncated responses
-    const rawText = response.text || '{}';
+    // Parse JSON with robust handling
+    let rawText = response.text || '{}';
+    console.log("AI Raw Response:", rawText); // Debug logging
+
+    // 1. Remove Markdown code blocks if present
+    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
     try {
       return JSON.parse(rawText);
     } catch (parseError) {
-      console.warn("JSON parse error, attempting to fix truncated response:", parseError);
-      // Try to extract valid JSON from potentially truncated response
-      try {
-        // Find the last complete JSON object
-        const lastBrace = rawText.lastIndexOf('}');
-        if (lastBrace > 0) {
-          const fixedJson = rawText.substring(0, lastBrace + 1);
-          return JSON.parse(fixedJson);
+      console.warn("JSON parse error:", parseError);
+
+      // 2. Try to find the JSON object via Regex (greedy match first)
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          // Continue to fix strategy
         }
-      } catch {
-        // If still fails, return partial data
-        console.error("Could not parse AI response:", rawText);
       }
-      return { error: "AI trả về dữ liệu không hợp lệ. Vui lòng thử lại." };
+
+      // 3. Robust JSON Fixer (Stack-based)
+      try {
+        let fixedJson = rawText.trim();
+        const stack: string[] = [];
+        let inString = false;
+        let isEscaped = false;
+
+        for (let i = 0; i < fixedJson.length; i++) {
+          const char = fixedJson[i];
+
+          if (isEscaped) {
+            isEscaped = false;
+            continue;
+          }
+
+          if (char === '\\') {
+            isEscaped = true;
+            continue;
+          }
+
+          if (char === '"') {
+            inString = !inString;
+            continue;
+          }
+
+          if (!inString) {
+            if (char === '{') stack.push('}');
+            else if (char === '[') stack.push(']');
+            else if (char === '}' || char === ']') {
+              if (stack.length > 0 && stack[stack.length - 1] === char) {
+                stack.pop();
+              }
+            }
+          }
+        }
+
+        // Close open string if truncated
+        if (inString) {
+          fixedJson += '"';
+        }
+
+        // Close open structures (LIFO)
+        while (stack.length > 0) {
+          fixedJson += stack.pop();
+        }
+
+        console.log("Fixed Truncated JSON:", fixedJson);
+        return JSON.parse(fixedJson);
+      } catch (finalError) {
+        console.error("Could not parse AI response:", finalError);
+      }
+
+      return {
+        error: "Không thể đọc dữ liệu từ AI. Vui lòng thử lại với file nhỏ hơn hoặc rõ nét hơn.",
+        raw: rawText
+      };
     }
   } catch (e) {
     console.error("AI Analysis failed", e);
@@ -146,8 +205,8 @@ export const chatWithAI = async (lastUserMessage: string, history: ChatMessage[]
         { role: 'user', parts: [{ text: finalMessage }] }
       ],
       config: {
-         temperature: 0.4,
-         maxOutputTokens: 2048,
+        temperature: 0.4,
+        maxOutputTokens: 2048,
       }
     });
 

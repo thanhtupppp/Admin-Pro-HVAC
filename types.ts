@@ -43,21 +43,22 @@ export interface ActivityEntry {
 }
 
 export interface ErrorCode {
-    id: string;
-    code: string;
-    title: string;
-    brand: string;
-    model: string;
-    symptom: string;
-    cause: string;
-    status: 'active' | 'pending' | 'draft';
-    severity: 'high' | 'medium' | 'low';
-    updatedAt: string;
-    steps: string[];
-    components: string[]; // New
-    tools: string[];      // New
-    images: string[];     // New (replacing single imageUrl)
-    description?: string; // Backwards compatibility
+  id: string;
+  code: string;
+  title: string;
+  brand: string;
+  model: string;
+  symptom: string;
+  cause: string;
+  status: 'active' | 'pending' | 'draft';
+  severity: 'high' | 'medium' | 'low';
+  updatedAt: string;
+  steps: string[];
+  components: string[]; // New
+  tools: string[];      // New
+  images: string[];     // New (replacing single imageUrl)
+  videos?: string[];    // New (YouTube Links)
+  description?: string; // Backwards compatibility
 }
 export interface Brand {
   id: string;

@@ -48,7 +48,7 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ onCancel, onSave }) => {
           <p className="text-text-secondary text-sm mt-1">Hãng: Samsung • Model: Inverter Series X</p>
         </div>
         <div className="flex gap-3">
-          <button 
+          <button
             onClick={() => setShowApiPreview(true)}
             className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-bold hover:bg-blue-500 hover:text-white transition-all flex items-center gap-2"
           >
@@ -71,10 +71,15 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ onCancel, onSave }) => {
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`pb-3 text-sm font-medium transition-all whitespace-nowrap border-b-2 ${
-              activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-white'
-            }`}
+            onClick={() => {
+              setActiveTab(tab.id);
+              const element = document.getElementById(tab.id);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }}
+            className={`cursor-pointer pb-3 text-sm font-medium transition-all whitespace-nowrap border-b-2 ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-white'
+              }`}
           >
             {tab.label}
           </button>
@@ -105,14 +110,81 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ onCancel, onSave }) => {
             </div>
           </section>
 
-          {/* Diagnosis & Repair Sections (Rút gọn cho ngắn gọn) */}
-          <section className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6">
+          {/* Diagnosis & Cause Section */}
+          <section id="diagnosis" className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6 scroll-mt-24">
             <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">medical_services</span>
-              Chẩn đoán & Quy trình
+              <span className="material-symbols-outlined text-amber-500">monitor_heart</span>
+              Chẩn đoán & Nguyên nhân
+            </h2>
+            <div className="space-y-6">
+              <div>
+                <label className="text-xs font-bold text-text-secondary uppercase mb-2 block">Triệu chứng nhận biết</label>
+                <textarea rows={3} className="w-full bg-background-dark border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none" defaultValue="Máy báo lỗi ngay khi bắt đầu chu trình vắt hoặc sau khi xả nước. Đèn báo nháy liên tục." />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-secondary uppercase mb-2 block">Nguyên nhân chi tiết</label>
+                <textarea rows={3} className="w-full bg-background-dark border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none" defaultValue="Công tắc cửa bị hỏng, kẹt cơ hoặc tiếp điểm bị oxy hóa. Bo mạch không nhận được tín hiệu phản hồi." />
+              </div>
+            </div>
+          </section>
+
+          {/* Repair Steps Section */}
+          <section id="repair" className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6 scroll-mt-24">
+            <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-green-500">build</span>
+              Quy trình sửa chữa
             </h2>
             <div className="space-y-4">
-               <textarea rows={3} className="w-full bg-background-dark border-border-dark rounded-xl px-4 py-3 text-white" defaultValue="Máy báo lỗi ngay khi bắt đầu chu trình vắt..." />
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex gap-4">
+                  <span className="w-8 h-8 rounded-lg bg-background-dark flex items-center justify-center font-bold text-text-secondary border border-border-dark shrink-0">{step}</span>
+                  <input type="text" className="flex-1 bg-background-dark border-border-dark rounded-xl px-4 py-2 text-white focus:ring-1 focus:ring-primary outline-none" defaultValue={step === 1 ? "Kiểm tra kết nối giắc cắm tại công tắc cửa." : step === 2 ? "Đo thông mạch bằng đồng hồ vạn năng." : "Thay thế khóa cửa mới nếu cần."} />
+                </div>
+              ))}
+              <button className="flex items-center gap-2 text-primary font-bold text-sm hover:underline pl-12">
+                <span className="material-symbols-outlined text-lg">add</span>
+                Thêm bước thực hiện
+              </button>
+            </div>
+          </section>
+
+          {/* Components & Tools Section */}
+          <section id="components" className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6 scroll-mt-24">
+            <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-blue-500">inventory_2</span>
+              Linh kiện & Công cụ
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-xs font-bold text-text-secondary uppercase mb-2 block">Linh kiện liên quan</label>
+                <div className="flex flex-wrap gap-2">
+                  {["Khóa cửa điện tử", "Dây cáp tín hiệu", "Bo mạch chính"].map((tag, i) => (
+                    <span key={i} className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2">
+                      {tag}
+                      <button className="hover:text-white"><span className="material-symbols-outlined text-sm">close</span></button>
+                    </span>
+                  ))}
+                  <button className="px-3 py-1.5 border border-dashed border-gray-600 rounded-lg text-sm text-gray-400 hover:text-white hover:border-gray-400 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">add</span>
+                    Thêm
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-secondary uppercase mb-2 block">Công cụ cần thiết</label>
+                <div className="flex flex-wrap gap-2">
+                  {["Tô vít 4 cạnh", "Đồng hồ VOM"].map((tag, i) => (
+                    <span key={i} className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2">
+                      {tag}
+                      <button className="hover:text-white"><span className="material-symbols-outlined text-sm">close</span></button>
+                    </span>
+                  ))}
+                  <button className="px-3 py-1.5 border border-dashed border-gray-600 rounded-lg text-sm text-gray-400 hover:text-white hover:border-gray-400 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">add</span>
+                    Thêm
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -125,13 +197,13 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ onCancel, onSave }) => {
                 <span className="text-gray-400">Trạng thái:</span>
                 <span className="text-green-400 bg-green-400/10 px-2 py-0.5 rounded font-bold">Đã duyệt</span>
               </div>
-              <button 
+              <button
                 onClick={onSave}
                 className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
               >
                 Lưu tất cả thay đổi
               </button>
-              <button 
+              <button
                 onClick={onCancel}
                 className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-all"
               >
@@ -147,40 +219,40 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ onCancel, onSave }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowApiPreview(false)}></div>
           <div className="relative bg-surface-dark border border-border-dark rounded-[2.5rem] w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
-             <div className="p-8 border-b border-border-dark/30 flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <span className="material-symbols-outlined text-blue-400">code</span>
-                    Mobile API Endpoint Preview
-                  </h3>
-                  <p className="text-xs text-text-secondary mt-1 font-mono">GET /api/errors/E23-99</p>
-                </div>
-                <button onClick={() => setShowApiPreview(false)} className="text-text-secondary hover:text-white">
-                  <span className="material-symbols-outlined">close</span>
-                </button>
-             </div>
-             <div className="flex-1 overflow-y-auto p-8 custom-scroll bg-background-dark/30">
-                <div className="bg-black/40 rounded-3xl p-6 border border-border-dark/50 font-mono text-[11px] leading-relaxed text-blue-300">
-                   <pre>{JSON.stringify(apiPreviewData, null, 2)}</pre>
-                </div>
-             </div>
-             <div className="p-8 border-t border-border-dark/30 flex justify-end gap-3">
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(apiPreviewData, null, 2));
-                    alert("Đã copy JSON để thiết kế API!");
-                  }}
-                  className="px-6 py-3 bg-primary/10 text-primary font-bold rounded-xl border border-primary/20 hover:bg-primary hover:text-white transition-all"
-                >
-                  Copy JSON
-                </button>
-                <button 
-                  onClick={() => setShowApiPreview(false)}
-                  className="px-6 py-3 bg-white/5 text-white font-bold rounded-xl"
-                >
-                  Đóng
-                </button>
-             </div>
+            <div className="p-8 border-b border-border-dark/30 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-400">code</span>
+                  Mobile API Endpoint Preview
+                </h3>
+                <p className="text-xs text-text-secondary mt-1 font-mono">GET /api/errors/E23-99</p>
+              </div>
+              <button onClick={() => setShowApiPreview(false)} className="text-text-secondary hover:text-white">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 custom-scroll bg-background-dark/30">
+              <div className="bg-black/40 rounded-3xl p-6 border border-border-dark/50 font-mono text-[11px] leading-relaxed text-blue-300">
+                <pre>{JSON.stringify(apiPreviewData, null, 2)}</pre>
+              </div>
+            </div>
+            <div className="p-8 border-t border-border-dark/30 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(apiPreviewData, null, 2));
+                  alert("Đã copy JSON để thiết kế API!");
+                }}
+                className="px-6 py-3 bg-primary/10 text-primary font-bold rounded-xl border border-primary/20 hover:bg-primary hover:text-white transition-all"
+              >
+                Copy JSON
+              </button>
+              <button
+                onClick={() => setShowApiPreview(false)}
+                className="px-6 py-3 bg-white/5 text-white font-bold rounded-xl"
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

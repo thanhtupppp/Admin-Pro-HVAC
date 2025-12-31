@@ -17,12 +17,13 @@ interface ExtractedData {
     components: string[];
     tools: string[];
     images: string[];
+    videos?: string[];
 }
 
 const SmartErrorImport: React.FC = () => {
     // State for Wizard Steps
     const [step, setStep] = useState<1 | 2 | 3>(1);
-    
+
     // Brand Data
     const [brands, setBrands] = useState<Brand[]>([]);
 
@@ -56,7 +57,8 @@ const SmartErrorImport: React.FC = () => {
         steps: [],
         components: [],
         tools: [],
-        images: []
+        images: [],
+        videos: []
     });
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +78,7 @@ const SmartErrorImport: React.FC = () => {
             reader.onload = async () => {
                 const base64 = (reader.result as string).split(',')[1];
                 const contextPrompt = `${contextData.brand} ${contextData.model_series}`;
-                
+
                 // Call AI Service
                 const result = await analyzeFileContent(base64, file.type, contextPrompt);
 
@@ -93,7 +95,7 @@ const SmartErrorImport: React.FC = () => {
                     tools: result.tools || [],
                     images: [] // Placeholder for standard logic
                 });
-                
+
                 setStep(3); // Move to Validation
             };
             reader.readAsDataURL(file);
@@ -116,7 +118,8 @@ const SmartErrorImport: React.FC = () => {
                 components: extractedData.components.filter(c => c),
                 tools: extractedData.tools.filter(t => t),
                 steps: extractedData.steps.filter(s => s),
-                images: extractedData.images.filter(i => i)
+                images: extractedData.images.filter(i => i),
+                videos: extractedData.videos?.filter(v => v) || []
             });
             alert(`Đã lưu mã lỗi ${extractedData.code} thành công!`);
             // Reset flow
@@ -134,10 +137,10 @@ const SmartErrorImport: React.FC = () => {
         const newImages = [...extractedData.images];
         // If it's a valid drive link, convert it immediately for preview
         if (isValidDriveLink(value)) {
-             const fileId = extractDriveFileId(value);
-             if (fileId) {
-                 newImages[index] = getDriveImageLink(fileId);
-             }
+            const fileId = extractDriveFileId(value);
+            if (fileId) {
+                newImages[index] = getDriveImageLink(fileId);
+            }
         } else {
             newImages[index] = value;
         }
@@ -154,7 +157,7 @@ const SmartErrorImport: React.FC = () => {
             <div className="mb-8">
                 <h1 className="text-2xl font-bold text-white mb-2">Nhập liệu Thông minh (AI Smart Import)</h1>
                 <p className="text-text-secondary">Quy trình chuẩn hóa dữ liệu từ tài liệu kỹ thuật & hình ảnh thực tế</p>
-                
+
                 {/* Steps Indicator */}
                 <div className="flex items-center gap-4 mt-6">
                     <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-gray-600'}`}>
@@ -183,7 +186,7 @@ const SmartErrorImport: React.FC = () => {
                             <label className="block text-sm font-bold text-text-secondary mb-2 uppercase">Hãng sản xuất</label>
                             <select
                                 value={contextData.brand}
-                                onChange={(e) => setContextData({...contextData, brand: e.target.value})}
+                                onChange={(e) => setContextData({ ...contextData, brand: e.target.value })}
                                 className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none appearance-none"
                             >
                                 <option value="">-- Chọn Hãng --</option>
@@ -194,15 +197,15 @@ const SmartErrorImport: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-text-secondary mb-2 uppercase">Dòng máy / Model Series (Tùy chọn)</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 placeholder="VD: VRV IV, SkyAir, Inverter..."
                                 value={contextData.model_series}
-                                onChange={(e) => setContextData({...contextData, model_series: e.target.value})}
+                                onChange={(e) => setContextData({ ...contextData, model_series: e.target.value })}
                                 className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none"
                             />
                         </div>
-                        <button 
+                        <button
                             onClick={() => contextData.brand ? setStep(2) : alert('Vui lòng nhập tên Hãng')}
                             className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary/20"
                         >
@@ -218,9 +221,9 @@ const SmartErrorImport: React.FC = () => {
                     <div className="flex-1">
                         <h2 className="text-xl font-bold text-white mb-6">Bước 2: Tải lên tài liệu</h2>
                         <div className="border-2 border-dashed border-border-dark rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:border-primary transition-colors cursor-pointer bg-background-dark/30 h-64 relative">
-                            <input 
-                                type="file" 
-                                onChange={handleFileSelect} 
+                            <input
+                                type="file"
+                                onChange={handleFileSelect}
                                 className="absolute inset-0 opacity-0 cursor-pointer"
                                 accept="image/*,application/pdf"
                             />
@@ -242,14 +245,13 @@ const SmartErrorImport: React.FC = () => {
                             <p className="text-lg font-bold text-white">{contextData.brand}</p>
                             <p className="text-sm text-primary">{contextData.model_series}</p>
                         </div>
-                        <button 
+                        <button
                             onClick={handleAnalyze}
                             disabled={!file || isAiProcessing}
-                            className={`w-full py-4 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${
-                                isAiProcessing 
-                                ? 'bg-gray-600 cursor-not-allowed' 
+                            className={`w-full py-4 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${isAiProcessing
+                                ? 'bg-gray-600 cursor-not-allowed'
                                 : 'bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/30'
-                            }`}
+                                }`}
                         >
                             {isAiProcessing ? (
                                 <>
@@ -263,6 +265,22 @@ const SmartErrorImport: React.FC = () => {
                                 </>
                             )}
                         </button>
+
+                        <button
+                            onClick={() => {
+                                setExtractedData(prev => ({
+                                    ...prev,
+                                    brand: contextData.brand,
+                                    model_series: contextData.model_series
+                                }));
+                                setStep(3);
+                            }}
+                            className="mt-3 w-full py-3 rounded-xl font-bold bg-white/5 text-text-secondary hover:text-white hover:bg-white/10 border border-white/10 transition-all flex items-center justify-center gap-2"
+                        >
+                            <span className="material-symbols-outlined">edit_note</span>
+                            Nhập thủ công (Bỏ qua AI)
+                        </button>
+
                         <button onClick={() => setStep(1)} className="mt-4 text-text-secondary text-sm hover:text-white underline">Quay lại Bước 1</button>
                     </div>
                 </div>
@@ -285,7 +303,13 @@ const SmartErrorImport: React.FC = () => {
                     <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden">
                         {/* Preview Panel */}
                         <div className="bg-black/40 rounded-2xl border border-border-dark/30 p-4 flex items-center justify-center overflow-auto">
-                             {previewUrl && <img src={previewUrl} className="max-w-full max-h-full rounded-lg shadow-2xl" />}
+                            {previewUrl && (
+                                file?.type === 'application/pdf' ? (
+                                    <iframe src={previewUrl} className="w-full h-full rounded-lg shadow-2xl min-h-[500px]" />
+                                ) : (
+                                    <img src={previewUrl} className="max-w-full max-h-full rounded-lg shadow-2xl" />
+                                )
+                            )}
                         </div>
 
                         {/* Edit Form */}
@@ -293,17 +317,17 @@ const SmartErrorImport: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-xs font-bold text-gray-400 uppercase">Mã lỗi</label>
-                                    <input value={extractedData.code} onChange={e => setExtractedData({...extractedData, code: e.target.value})} className="w-full bg-background-dark p-3 rounded-lg text-white font-bold border border-border-dark focus:border-primary" />
+                                    <input value={extractedData.code} onChange={e => setExtractedData({ ...extractedData, code: e.target.value })} className="w-full bg-background-dark p-3 rounded-lg text-white font-bold border border-border-dark focus:border-primary" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-gray-400 uppercase">Tên lỗi</label>
-                                    <input value={extractedData.title} onChange={e => setExtractedData({...extractedData, title: e.target.value})} className="w-full bg-background-dark p-3 rounded-lg text-white border border-border-dark focus:border-primary" />
+                                    <input value={extractedData.title} onChange={e => setExtractedData({ ...extractedData, title: e.target.value })} className="w-full bg-background-dark p-3 rounded-lg text-white border border-border-dark focus:border-primary" />
                                 </div>
                             </div>
 
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase">Nguyên nhân (Chi tiết)</label>
-                                <textarea rows={3} value={extractedData.cause} onChange={e => setExtractedData({...extractedData, cause: e.target.value})} className="w-full bg-background-dark p-3 rounded-lg text-white border border-border-dark focus:border-primary resize-none" />
+                                <textarea rows={3} value={extractedData.cause} onChange={e => setExtractedData({ ...extractedData, cause: e.target.value })} className="w-full bg-background-dark p-3 rounded-lg text-white border border-border-dark focus:border-primary resize-none" />
                             </div>
 
                             <div>
@@ -311,27 +335,27 @@ const SmartErrorImport: React.FC = () => {
                                 <div className="space-y-2 mt-2">
                                     {extractedData.steps.map((step, idx) => (
                                         <div key={idx} className="flex gap-2">
-                                            <span className="w-6 h-6 rounded bg-gray-700 text-white flex items-center justify-center text-xs shrink-0">{idx+1}</span>
-                                            <input 
-                                                value={step} 
+                                            <span className="w-6 h-6 rounded bg-gray-700 text-white flex items-center justify-center text-xs shrink-0">{idx + 1}</span>
+                                            <input
+                                                value={step}
                                                 onChange={e => {
                                                     const newSteps = [...extractedData.steps];
                                                     newSteps[idx] = e.target.value;
-                                                    setExtractedData({...extractedData, steps: newSteps});
+                                                    setExtractedData({ ...extractedData, steps: newSteps });
                                                 }}
                                                 className="flex-1 bg-transparent border-b border-border-dark text-white text-sm focus:border-primary outline-none py-1"
                                             />
                                         </div>
                                     ))}
-                                    <button 
-                                        onClick={() => setExtractedData({...extractedData, steps: [...extractedData.steps, '']})}
+                                    <button
+                                        onClick={() => setExtractedData({ ...extractedData, steps: [...extractedData.steps, ''] })}
                                         className="text-xs text-primary font-bold hover:underline flex items-center gap-1 mt-2"
                                     >
                                         <span className="material-symbols-outlined text-sm">add</span> Thêm bước
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {/* Images Section with Drive Support */}
                             <div className="col-span-2">
                                 <label className="text-xs font-bold text-gray-400 uppercase flex justify-between items-center">
@@ -355,11 +379,11 @@ const SmartErrorImport: React.FC = () => {
                                                 )}
                                                 {img.includes('googleusercontent') && <div className="absolute top-1 right-1 bg-green-500 text-white text-[8px] font-bold px-1 rounded">DRIVE</div>}
                                             </div>
-                                            
+
                                             {/* Input for Link */}
-                                            <input 
-                                                type="text" 
-                                                placeholder="Paste Drive Link..." 
+                                            <input
+                                                type="text"
+                                                placeholder="Paste Drive Link..."
                                                 value={img.startsWith('data:') ? '(AI Image)' : img}
                                                 onChange={(e) => handleImageLinkChange(i, e.target.value)}
                                                 className="w-full bg-background-dark text-[10px] text-white p-1 rounded border border-border-dark focus:border-primary outline-none"
@@ -374,35 +398,181 @@ const SmartErrorImport: React.FC = () => {
                                             </button>
                                         </div>
                                     ))}
-                                    
+
                                     {/* Capture Button (Preserved) */}
-                                    <button
-                                        onClick={() => window.alert("Tính năng chụp từ PDF đang được nâng cấp để hỗ trợ upload lên Drive!")}
-                                        className="aspect-square border-2 border-dashed border-border-dark rounded-xl flex flex-col items-center justify-center text-text-secondary hover:text-primary hover:border-primary transition-all bg-background-dark/30 opacity-50"
-                                    >
-                                        <span className="material-symbols-outlined text-2xl">crop_free</span>
-                                        <span className="text-[8px] font-bold mt-1 uppercase text-center">AI Image<br/>(Local)</span>
-                                    </button>
+                                    {/* Capture Button (Upgraded to Local Upload) */}
+                                    <div className="relative aspect-square border-2 border-dashed border-border-dark rounded-xl flex flex-col items-center justify-center text-text-secondary hover:text-primary hover:border-primary transition-all bg-background-dark/30 cursor-pointer overflow-hidden group">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                                            title="Tải ảnh lên từ máy"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (ev) => {
+                                                        const result = ev.target?.result as string;
+                                                        setExtractedData(prev => ({ ...prev, images: [...prev.images, result] }));
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                        />
+                                        <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">add_photo_alternate</span>
+                                        <span className="text-[8px] font-bold mt-1 uppercase text-center group-hover:text-white">Tải ảnh lên<br />(Local)</span>
+                                    </div>
                                 </div>
                                 <p className="text-[10px] text-gray-500 mt-2 italic">
                                     * Mẹo: Dán link chia sẻ Google Drive vào ô nhập để tiết kiệm dung lượng database.
                                 </p>
                             </div>
 
+                            {/* Video Inputs (Multiple) */}
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase flex justify-between items-center">
+                                    Video hướng dẫn (YouTube)
+                                    <button
+                                        onClick={() => setExtractedData({ ...extractedData, videos: [...(extractedData.videos || []), ''] })}
+                                        className="text-primary hover:text-white flex items-center gap-1"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">add_circle</span>
+                                        Thêm Video
+                                    </button>
+                                </label>
+                                <div className="space-y-4 mt-2">
+                                    {(extractedData.videos?.length ? extractedData.videos : ['']).map((videoUrl, idx) => (
+                                        <div key={idx} className="flex gap-4 p-3 bg-background-dark/30 rounded-xl border border-border-dark/30">
+                                            <div className="flex-1 space-y-2">
+                                                <div className="flex gap-2">
+                                                    <span className="w-6 h-6 rounded bg-red-500/10 text-red-500 flex items-center justify-center text-xs shrink-0 font-bold border border-red-500/20">{idx + 1}</span>
+                                                    <input
+                                                        value={videoUrl}
+                                                        onChange={e => {
+                                                            const newVideos = [...(extractedData.videos || [])];
+                                                            // Ensure array has enough slots if we started with empty default
+                                                            if (newVideos.length <= idx) newVideos.push('');
+                                                            newVideos[idx] = e.target.value;
+                                                            setExtractedData({ ...extractedData, videos: newVideos });
+                                                        }}
+                                                        className="flex-1 bg-transparent border-b border-border-dark text-white text-sm focus:border-red-500 outline-none py-1 placeholder:text-gray-700"
+                                                        placeholder="https://www.youtube.com/watch?v=..."
+                                                    />
+                                                    {/* Remove Button */}
+                                                    {(extractedData.videos?.length || 0) > 0 && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const newVideos = extractedData.videos?.filter((_, i) => i !== idx);
+                                                                setExtractedData({ ...extractedData, videos: newVideos });
+                                                            }}
+                                                            className="text-gray-500 hover:text-red-500"
+                                                        >
+                                                            <span className="material-symbols-outlined text-lg">delete</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Helper Text */}
+                                                {idx === 0 && (
+                                                    <p className="text-[10px] text-gray-500 italic pl-8">
+                                                        * Hỗ trợ link YouTube, YouTube Short. Video sẽ phát trực tiếp trên App.
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Preview Thumbnail */}
+                                            {videoUrl && (
+                                                <div className="w-32 aspect-video bg-black rounded-lg overflow-hidden border border-border-dark relative shrink-0">
+                                                    {(() => {
+                                                        const getYouTubeId = (url: string) => {
+                                                            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                                                            const match = url?.match(regExp);
+                                                            return (match && match[2].length === 11) ? match[2] : null;
+                                                        };
+                                                        const videoId = getYouTubeId(videoUrl);
+                                                        return videoId ? (
+                                                            <img
+                                                                src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`}
+                                                                className="w-full h-full object-cover opacity-80"
+                                                            />
+                                                        ) : (
+                                                            <div className="flex items-center justify-center h-full text-red-500/50 text-[10px] text-center">Invalid</div>
+                                                        );
+                                                    })()}
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="material-symbols-outlined text-white drop-shadow-md">play_circle</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase">Linh kiện liên quan</label>
+                                    <label className="text-xs font-bold text-gray-400 uppercase flex justify-between">
+                                        Linh kiện liên quan
+                                        <button
+                                            onClick={() => setExtractedData({ ...extractedData, components: [...extractedData.components, ''] })}
+                                            className="text-primary hover:text-white"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">add</span>
+                                        </button>
+                                    </label>
                                     <div className="flex flex-wrap gap-2 mt-2">
                                         {extractedData.components.map((comp, i) => (
-                                            <span key={i} className="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs border border-blue-500/20">{comp}</span>
+                                            <div key={i} className="flex items-center bg-blue-500/10 border border-blue-500/20 rounded-lg px-2 py-1">
+                                                <input
+                                                    value={comp}
+                                                    onChange={(e) => {
+                                                        const newComps = [...extractedData.components];
+                                                        newComps[i] = e.target.value;
+                                                        setExtractedData({ ...extractedData, components: newComps });
+                                                    }}
+                                                    className="bg-transparent text-blue-400 text-xs w-24 outline-none"
+                                                    placeholder="Nhập tên..."
+                                                />
+                                                <button
+                                                    onClick={() => setExtractedData({ ...extractedData, components: extractedData.components.filter((_, idx) => idx !== i) })}
+                                                    className="ml-1 text-blue-500/50 hover:text-red-500"
+                                                >
+                                                    <span className="material-symbols-outlined text-[10px]">close</span>
+                                                </button>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase">Công cụ cần thiết</label>
+                                    <label className="text-xs font-bold text-gray-400 uppercase flex justify-between">
+                                        Công cụ cần thiết
+                                        <button
+                                            onClick={() => setExtractedData({ ...extractedData, tools: [...extractedData.tools, ''] })}
+                                            className="text-primary hover:text-white"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">add</span>
+                                        </button>
+                                    </label>
                                     <div className="flex flex-wrap gap-2 mt-2">
                                         {extractedData.tools.map((tool, i) => (
-                                            <span key={i} className="bg-orange-500/10 text-orange-400 px-2 py-1 rounded text-xs border border-orange-500/20">{tool}</span>
+                                            <div key={i} className="flex items-center bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-1">
+                                                <input
+                                                    value={tool}
+                                                    onChange={(e) => {
+                                                        const newTools = [...extractedData.tools];
+                                                        newTools[i] = e.target.value;
+                                                        setExtractedData({ ...extractedData, tools: newTools });
+                                                    }}
+                                                    className="bg-transparent text-orange-400 text-xs w-24 outline-none"
+                                                    placeholder="Nhập tên..."
+                                                />
+                                                <button
+                                                    onClick={() => setExtractedData({ ...extractedData, tools: extractedData.tools.filter((_, idx) => idx !== i) })}
+                                                    className="ml-1 text-orange-500/50 hover:text-red-500"
+                                                >
+                                                    <span className="material-symbols-outlined text-[10px]">close</span>
+                                                </button>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>

@@ -18,6 +18,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
   const [errors, setErrors] = useState<ErrorCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [zoomedImageIndex, setZoomedImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     loadErrors();
@@ -294,6 +295,21 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
                     </div>
                   </div>
 
+                  {/* Tools Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-orange-500 text-[20px]">handyman</span>
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Công cụ cần thiết</h4>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedError.tools?.map((tool, idx) => (
+                        <span key={idx} className="px-3 py-1.5 bg-white/5 border border-border-dark rounded-lg text-xs text-white font-medium">
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Steps Section */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
@@ -311,7 +327,92 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
                       ))}
                     </div>
                   </div>
+
+                  {/* Image Gallery */}
+                  {selectedError.images && selectedError.images.length > 0 && (
+                    <div className="pt-2 border-t border-border-dark/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="material-symbols-outlined text-purple-500 text-[20px]">image</span>
+                        <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Hình ảnh minh họa</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedError.images.map((img, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setZoomedImageIndex(idx)}
+                            className="relative group aspect-square rounded-xl bg-black/40 border border-border-dark/30 overflow-hidden cursor-pointer hover:border-primary/50 transition-all"
+                          >
+                            {img.startsWith('http') && !img.includes('base64') ? (
+                              <img
+                                src={img}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              // Base64 Image
+                              <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            )}
+
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <span className="material-symbols-outlined text-white">zoom_in</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Video Player */}
+                  {/* Video Player (Multiple) */}
+                  {(selectedError.videos && selectedError.videos.length > 0) && (
+                    <div className="pt-6 border-t border-border-dark/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="material-symbols-outlined text-red-500 text-[20px]">smart_display</span>
+                        <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Video Hướng dẫn ({selectedError.videos.length})</h4>
+                      </div>
+                      <div className="space-y-6">
+                        {selectedError.videos.map((videoUrl, idx) => (
+                          <div key={idx} className="bg-black/20 rounded-xl p-4 border border-border-dark/30">
+                            <div className="aspect-video w-full bg-black rounded-lg overflow-hidden shadow-lg mb-2">
+                              {(() => {
+                                const getYouTubeId = (url: string) => {
+                                  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                                  const match = url?.match(regExp);
+                                  return (match && match[2].length === 11) ? match[2] : null;
+                                };
+                                const videoId = getYouTubeId(videoUrl);
+                                return videoId ? (
+                                  <iframe
+                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                    className="w-full h-full"
+                                    title={`Video Hướng dẫn ${idx + 1}`}
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                                    Link video không hợp lệ
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-[10px] font-bold text-white">
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs text-gray-400 truncate flex-1">{videoUrl}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+
 
                 {/* Panel Footer */}
                 <div className="p-6 border-t border-border-dark/30 bg-background-dark/30">
@@ -334,6 +435,61 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
           </>
         )
       }
+
+      {/* Lightbox / Zoom Modal */}
+      {/* Lightbox / Zoom Modal */}
+      {zoomedImageIndex !== null && selectedError?.images && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setZoomedImageIndex(null)}
+        >
+          {/* Close Button */}
+          <button
+            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-all z-50"
+            onClick={() => setZoomedImageIndex(null)}
+          >
+            <span className="material-symbols-outlined text-2xl">close</span>
+          </button>
+
+          {/* Previous Button */}
+          {zoomedImageIndex > 0 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-primary/80 text-white rounded-full transition-all z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoomedImageIndex(zoomedImageIndex - 1);
+              }}
+            >
+              <span className="material-symbols-outlined text-3xl">chevron_left</span>
+            </button>
+          )}
+
+          {/* Main Image */}
+          <img
+            src={selectedError.images[zoomedImageIndex]}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl scale-in-95 animate-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Next Button */}
+          {zoomedImageIndex < selectedError.images.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-primary/80 text-white rounded-full transition-all z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoomedImageIndex(zoomedImageIndex + 1);
+              }}
+            >
+              <span className="material-symbols-outlined text-3xl">chevron_right</span>
+            </button>
+          )}
+
+          {/* Image Counter */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white text-sm font-medium backdrop-blur-md">
+            {zoomedImageIndex + 1} / {selectedError.images.length}
+          </div>
+        </div>
+      )}
     </div >
   );
 };
