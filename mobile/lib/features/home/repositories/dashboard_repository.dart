@@ -1,11 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/error_code_model.dart';
+import '../models/brand_model.dart';
 
 class DashboardRepository {
   final FirebaseFirestore _firestore;
 
   DashboardRepository(this._firestore);
+
+  // Lấy danh sách brands từ Firestore
+  Stream<List<Brand>> getBrands() {
+    return _firestore.collection('brands').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Brand.fromFirestore(doc)).toList();
+    });
+  }
 
   Stream<List<ErrorCode>> getRecentErrors() {
     return _firestore
@@ -20,11 +28,61 @@ class DashboardRepository {
         });
   }
 
+  // Lấy lỗi gần đây theo brand
+  Stream<List<ErrorCode>> getRecentErrorsByBrand(String brandName) {
+    return _firestore
+        .collection('error_codes')
+        .where('brand', isEqualTo: brandName)
+        .orderBy('updatedAt', descending: true)
+        .limit(10)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => ErrorCode.fromFirestore(doc))
+              .toList();
+        });
+  }
+
   Stream<List<ErrorCode>> getCommonErrors() {
     return _firestore
         .collection('error_codes')
         .where('isCommon', isEqualTo: true)
         .limit(5)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => ErrorCode.fromFirestore(doc))
+              .toList();
+        });
+  }
+
+  // Lấy lỗi thường gặp theo brand
+  Stream<List<ErrorCode>> getCommonErrorsByBrand(String brandName) {
+    return _firestore
+        .collection('error_codes')
+        .where('brand', isEqualTo: brandName)
+        .where('isCommon', isEqualTo: true)
+        .limit(10)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => ErrorCode.fromFirestore(doc))
+              .toList();
+        });
+  }
+
+  // Lấy danh sách lỗi theo IDs (cho màn hình Saved)
+  Stream<List<ErrorCode>> getErrorsByIds(List<String> ids) {
+    if (ids.isEmpty) return Stream.value([]);
+
+    // Firestore 'whereIn' supports max 10 values.
+    // For simplicity in this demo, we assume ids length is small or we take first 10.
+    // In production, split into chunks of 10.
+    final limitedIds = ids.length > 10 ? ids.sublist(0, 10) : ids;
+
+    return _firestore
+        .collection('error_codes')
+        .where(FieldPath.documentId, whereIn: limitedIds)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs

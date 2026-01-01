@@ -51,6 +51,12 @@ dependencies:
   
   # Local storage
   shared_preferences: ^2.3.3
+  
+  # URL Launcher (for opening videos)
+  url_launcher: ^6.2.5
+  
+  # YouTube Player (inline playback)
+  youtube_player_flutter: ^9.0.4
 
 dev_dependencies:
   flutter_test:

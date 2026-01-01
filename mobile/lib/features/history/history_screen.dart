@@ -1,141 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
-import '../home/models/error_code_model.dart';
-// Reuse ErrorCode but wrap it or create ad-hoc model for history structure
+import 'providers/history_provider.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
-  // Mock Data
-  final Map<String, List<HistoryItem>> _historyGroups = {
-    'HÔM NAY': [
-      HistoryItem(
-        code: 'E4',
-        title: 'Cảm biến nhiệt độ phòng',
-        brand: 'Samsung',
-        model: 'AR12TX',
-        time: '10:42 AM',
-        icon: Icons.ac_unit,
-        hasNotification: true,
-        errorCode: ErrorCode(
-          id: '1',
-          code: 'E4',
-          title: 'Cảm biến nhiệt độ phòng',
-          brand: 'Samsung',
-          model: 'AR12TX',
-          symptom: 'Symptom...',
-          cause: 'Cause...',
-          components: [],
-          steps: [],
-          status: 'active',
-          severity: 'medium',
-          updatedAt: DateTime.now(),
-        ),
-      ),
-      HistoryItem(
-        code: 'LE',
-        title: 'Quá tải động cơ',
-        brand: 'LG',
-        model: 'WM3400',
-        time: '09:15 AM',
-        icon: Icons.water_drop,
-        errorCode: ErrorCode(
-          id: '2',
-          code: 'LE',
-          title: 'Quá tải động cơ',
-          brand: 'LG',
-          model: 'WM3400',
-          symptom: 'Symptom...',
-          cause: 'Cause...',
-          components: [],
-          steps: [],
-          status: 'active',
-          severity: 'medium',
-          updatedAt: DateTime.now(),
-        ),
-      ),
-    ],
-    'HÔM QUA': [
-      HistoryItem(
-        code: 'SY CF',
-        title: 'Lỗi giao tiếp',
-        brand: 'Electrolux',
-        model: 'EI23',
-        time: '4:30 PM',
-        icon: Icons.kitchen,
-        errorCode: ErrorCode(
-          id: '3',
-          code: 'SY CF',
-          title: 'Lỗi giao tiếp',
-          brand: 'Electrolux',
-          model: 'EI23',
-          symptom: 'Symptom...',
-          cause: 'Cause...',
-          components: [],
-          steps: [],
-          status: 'active',
-          severity: 'medium',
-          updatedAt: DateTime.now(),
-        ),
-      ),
-      HistoryItem(
-        code: 'F1',
-        title: 'Lỗi đánh lửa',
-        brand: 'York',
-        model: 'TG9S',
-        time: '11:05 AM',
-        icon: Icons.whatshot, // Was mode_heat
-        errorCode: ErrorCode(
-          id: '4',
-          code: 'F1',
-          title: 'Lỗi đánh lửa',
-          brand: 'York',
-          model: 'TG9S',
-          symptom: 'Symptom...',
-          cause: 'Cause...',
-          components: [],
-          steps: [],
-          status: 'active',
-          severity: 'high',
-          updatedAt: DateTime.now(),
-        ),
-      ),
-    ],
-    'TUẦN TRƯỚC': [
-      HistoryItem(
-        code: 'H6',
-        title: 'Mô tơ quạt dàn lạnh',
-        brand: 'Gree',
-        model: 'Lomo',
-        time: 'Thứ 2',
-        icon: Icons.warning,
-        errorCode: ErrorCode(
-          id: '5',
-          code: 'H6',
-          title: 'Mô tơ quạt dàn lạnh',
-          brand: 'Gree',
-          model: 'Lomo',
-          symptom: 'Symptom...',
-          cause: 'Cause...',
-          components: [],
-          steps: [],
-          status: 'active',
-          severity: 'medium',
-          updatedAt: DateTime.now(),
-        ),
-      ),
-    ],
-  };
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  String _searchQuery = '';
+
+  Map<String, List<HistoryDisplayItem>> _groupHistoryItems(
+    List<HistoryDisplayItem> items,
+  ) {
+    final Map<String, List<HistoryDisplayItem>> grouped = {};
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    for (var item in items) {
+      final date = item.entry.timestamp;
+      final dateOnly = DateTime(date.year, date.month, date.day);
+
+      String key;
+      if (dateOnly == today) {
+        key = 'HÔM NAY';
+      } else if (dateOnly == yesterday) {
+        key = 'HÔM QUA';
+      } else {
+        // Format: dd/MM/yyyy
+        key = DateFormat('dd/MM/yyyy').format(date);
+      }
+
+      if (!grouped.containsKey(key)) {
+        grouped[key] = [];
+      }
+      grouped[key]!.add(item);
+    }
+    return grouped;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final historyAsync = ref.watch(historyItemsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -156,7 +70,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      _showClearHistoryDialog(context);
+                    },
                     child: const Text(
                       'Xóa',
                       style: TextStyle(
@@ -181,9 +97,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     color: AppColors.textSecondary.withValues(alpha: 0.2),
                   ),
                 ),
-                child: const TextField(
-                  style: TextStyle(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
+                child: TextField(
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val;
+                    });
+                  },
+                  decoration: const InputDecoration(
                     icon: Icon(Icons.search, color: AppColors.textSecondary),
                     border: InputBorder.none,
                     hintText: 'Tìm theo mã lỗi, hãng hoặc model...',
@@ -196,32 +117,79 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
             // 3. List
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: _historyGroups.entries.map((entry) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 8,
-                          horizontal: 4,
-                        ),
-                        child: Text(
-                          entry.key,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
+              child: historyAsync.when(
+                data: (items) {
+                  // Local filtered
+                  var filteredItems = items;
+                  if (_searchQuery.isNotEmpty) {
+                    filteredItems = filteredItems.where((item) {
+                      final e = item.errorCode;
+                      final query = _searchQuery.toLowerCase();
+                      return e.code.toLowerCase().contains(query) ||
+                          e.brand.toLowerCase().contains(query) ||
+                          e.model.toLowerCase().contains(query);
+                    }).toList();
+                  }
+
+                  if (filteredItems.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.history,
+                            size: 64,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
-                        ),
+                          const Gap(16),
+                          Text(
+                            items.isEmpty
+                                ? 'Chưa có lịch sử tìm kiếm'
+                                : 'Không tìm thấy kết quả',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
-                      ...entry.value.map((item) => _buildHistoryCard(item)),
-                      const Gap(16),
-                    ],
+                    );
+                  }
+
+                  final groupedItems = _groupHistoryItems(filteredItems);
+
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: groupedItems.entries.map((entry) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 4,
+                            ),
+                            child: Text(
+                              entry.key,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          ...entry.value.map((item) => _buildHistoryCard(item)),
+                          const Gap(16),
+                        ],
+                      );
+                    }).toList(),
                   );
-                }).toList(),
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(child: Text('Lỗi: $err')),
               ),
             ),
           ],
@@ -230,10 +198,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildHistoryCard(HistoryItem item) {
+  Future<void> _showClearHistoryDialog(BuildContext context) async {
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Xóa lịch sử?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Bạn có chắc muốn xóa toàn bộ lịch sử tìm kiếm không?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(historyNotifierProvider.notifier).clearHistory();
+              Navigator.pop(context);
+            },
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(HistoryDisplayItem item) {
+    final e = item.errorCode;
+    final timeStr = DateFormat('HH:mm').format(item.entry.timestamp);
+
     return GestureDetector(
       onTap: () {
-        context.push('/history/error-detail', extra: item.errorCode);
+        context.push('/history/error-detail', extra: e);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -248,33 +249,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Row(
           children: [
             // Icon Box
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(item.icon, color: AppColors.primary, size: 24),
-                ),
-                if (item.hasNotification)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.surface, width: 2),
-                      ),
-                    ),
-                  ),
-              ],
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.history,
+                color: AppColors.primary,
+                size: 24,
+              ),
             ),
             const Gap(16),
 
@@ -287,7 +273,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        item.code,
+                        e.code,
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 18,
@@ -295,7 +281,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ),
                       Text(
-                        item.time,
+                        timeStr,
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 12,
@@ -306,7 +292,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   const Gap(4),
                   Text(
-                    item.title,
+                    e.title,
                     style: TextStyle(
                       color: AppColors.textPrimary.withValues(alpha: 0.9),
                       fontSize: 14,
@@ -317,7 +303,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   const Gap(2),
                   Text(
-                    '${item.brand} • ${item.model}',
+                    '${e.brand} • ${e.model}',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
@@ -329,32 +315,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
             const Gap(8),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            IconButton(
+              icon: const Icon(
+                Icons.close,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+              onPressed: () {
+                ref
+                    .read(historyNotifierProvider.notifier)
+                    .removeItem(item.entry.errorId);
+              },
+            ),
           ],
         ),
       ),
     );
   }
-}
-
-class HistoryItem {
-  final String code;
-  final String title;
-  final String brand;
-  final String model;
-  final String time;
-  final IconData icon;
-  final bool hasNotification;
-  final ErrorCode errorCode;
-
-  HistoryItem({
-    required this.code,
-    required this.title,
-    required this.brand,
-    required this.model,
-    required this.time,
-    required this.icon,
-    this.hasNotification = false,
-    required this.errorCode,
-  });
 }

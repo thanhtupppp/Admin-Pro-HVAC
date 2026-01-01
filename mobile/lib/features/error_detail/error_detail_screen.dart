@@ -4,6 +4,10 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../home/models/error_code_model.dart';
+import '../video/video_player_screen.dart';
+import '../troubleshoot/troubleshoot_screen.dart';
+import '../saved/providers/saved_provider.dart';
+import '../history/providers/history_provider.dart';
 
 class ErrorDetailScreen extends ConsumerWidget {
   final ErrorCode errorCode;
@@ -12,12 +16,61 @@ class ErrorDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Auto-add to history when viewing details
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(historyNotifierProvider.notifier).addToHistory(errorCode.id);
+    });
+
+    final savedIdsAsync = ref.watch(savedIdsProvider);
+    final isSaved = savedIdsAsync.value?.contains(errorCode.id) ?? false;
+
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(
+          errorCode.title,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () {
+              ref.read(savedIdsProvider.notifier).toggle(errorCode.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    isSaved
+                        ? 'Đã bỏ lưu mã lỗi'
+                        : 'Đã lưu mã lỗi vào Yêu thích',
+                  ),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            },
+            icon: Icon(
+              isSaved ? Icons.bookmark : Icons.bookmark_border,
+              color: isSaved ? AppColors.primary : Colors.white,
+            ),
+          ),
+          const Gap(8),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
@@ -75,7 +128,14 @@ class ErrorDetailScreen extends ConsumerWidget {
                     ],
 
                     // 4. Repair Steps
-                    if (errorCode.steps.isNotEmpty) _buildStepsSection(),
+                    if (errorCode.steps.isNotEmpty) ...[
+                      _buildStepsSection(),
+                      const Gap(24),
+                    ],
+
+                    // 5. Videos (YouTube)
+                    if (errorCode.videos.isNotEmpty)
+                      _buildVideosSection(context),
                   ],
                 ),
               ),
@@ -83,39 +143,6 @@ class ErrorDetailScreen extends ConsumerWidget {
             _buildBottomAction(context),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: () => context.pop(),
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              size: 20,
-              color: Colors.white,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              errorCode.title,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          const SizedBox(width: 48), // Balance spacing
-        ],
       ),
     );
   }
@@ -347,6 +374,133 @@ class ErrorDetailScreen extends ConsumerWidget {
     );
   }
 
+  // Extract YouTube video ID from URL
+  String? _getYouTubeVideoId(String url) {
+    final regExp = RegExp(
+      r'^.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*',
+      caseSensitive: false,
+    );
+    final match = regExp.firstMatch(url);
+    if (match != null && match.groupCount >= 1) {
+      return match.group(1);
+    }
+    return null;
+  }
+
+  Widget _buildVideosSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.play_circle_outline,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+            const Gap(8),
+            const Text(
+              'VIDEO HƯỚNG DẪN',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const Gap(12),
+        ...errorCode.videos.asMap().entries.map((entry) {
+          final idx = entry.key + 1;
+          final videoUrl = entry.value;
+          final videoId = _getYouTubeVideoId(videoUrl);
+          final thumbnailUrl = videoId != null
+              ? 'https://img.youtube.com/vi/$videoId/mqdefault.jpg'
+              : null;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoPlayerScreen(
+                      videoUrl: videoUrl,
+                      title: 'Video $idx',
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  children: [
+                    // Thumbnail
+                    Container(
+                      width: 100,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black,
+                        image: thumbnailUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(thumbnailUrl),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.play_circle_filled,
+                          color: Colors.red,
+                          size: 36,
+                        ),
+                      ),
+                    ),
+                    const Gap(12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Video $idx',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Gap(4),
+                          Text(
+                            'Nhấn để xem trên YouTube',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.open_in_new,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildBottomAction(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -359,8 +513,12 @@ class ErrorDetailScreen extends ConsumerWidget {
         height: 50,
         child: ElevatedButton(
           onPressed: () {
-            // Navigate to generic troubleshoot or tools
-            // For now, maybe just show a "Coming Soon" or context actions
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TroubleshootScreen(errorCode: errorCode),
+              ),
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF136DEC),

@@ -15,6 +15,7 @@ class ErrorCode {
   final DateTime updatedAt; // Matches Web 'updatedAt'
   final List<String> tools;
   final List<String> images; // List of Drive links or AI images
+  final List<String> videos; // YouTube links
 
   // Mobile specific or optional fields
   final String? description; // Keep for backward compatibility or generic use
@@ -32,6 +33,7 @@ class ErrorCode {
     this.components = const [],
     this.tools = const [],
     this.images = const [],
+    this.videos = const [],
     this.steps = const [],
     this.status = 'active',
     this.severity = 'low',
@@ -40,6 +42,20 @@ class ErrorCode {
     this.imageUrl,
     this.isCommon = false,
   });
+
+  // Helper to parse updatedAt which can be Timestamp (from mobile) or String (from web)
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+    return DateTime.now();
+  }
 
   factory ErrorCode.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -58,10 +74,11 @@ class ErrorCode {
       steps: List<String>.from(data['steps'] ?? []),
       status: data['status'] ?? 'active',
       severity: data['severity'] ?? 'low',
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: _parseDateTime(data['updatedAt']),
       description: data['description'],
       imageUrl: data['imageUrl'],
       images: List<String>.from(data['images'] ?? []),
+      videos: List<String>.from(data['videos'] ?? []),
       tools: List<String>.from(data['tools'] ?? []),
       isCommon: data['isCommon'] ?? false,
     );
@@ -83,6 +100,7 @@ class ErrorCode {
       'description': description,
       'imageUrl': imageUrl,
       'images': images,
+      'videos': videos,
       'tools': tools,
       'isCommon': isCommon,
     };

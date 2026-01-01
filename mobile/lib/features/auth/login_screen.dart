@@ -295,6 +295,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   .signInWithGoogle();
 
                               if (success && context.mounted) {
+                                context.go('/home');
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(

@@ -22,10 +22,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
   @override
   void initState() {
     super.initState();
-    // Seed Data (For Development purpose - creating initial data on Firestore)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(dashboardRepositoryProvider).seedData();
-    });
+    // Data is managed from web admin, no need to seed
   }
 
   Color _getColorForBrand(String brand) {
@@ -135,9 +132,9 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                             brand: item.brand,
                             title: item.title,
                             subtitle: item.model,
-                            imageUrl:
-                                item.imageUrl ??
-                                'https://via.placeholder.com/300x200',
+                            imageUrl: item.imageUrl ?? '',
+                            images: item.images,
+                            videos: item.videos,
                           ),
                         );
                       },
