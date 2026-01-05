@@ -1,4 +1,5 @@
 import { ErrorCode } from '../types';
+import { systemService } from './systemService';
 import { db } from './firebaseConfig';
 import {
     collection,
@@ -45,6 +46,14 @@ export const errorService = {
             updatedAt: new Date().toISOString().split('T')[0]
         };
         const docRef = await addDoc(collection(db, 'error_codes'), newError);
+        
+        await systemService.logActivity(
+            'CREATE',
+            errorData.code,
+            `Đã tạo mã lỗi mới: ${errorData.code} - ${errorData.title}`,
+            'info'
+        );
+
         return { id: docRef.id, ...newError } as ErrorCode;
     },
 
@@ -56,15 +65,29 @@ export const errorService = {
         };
         await updateDoc(docRef, dataToUpdate);
 
+        await systemService.logActivity(
+            'UPDATE',
+            updates.code || id,
+            `Đã cập nhật mã lỗi: ${updates.code || id}`,
+            'info'
+        );
+
         // Return updated object (fetching it again or merging usage)
         return { id, ...dataToUpdate } as ErrorCode;
-        // Note: Ideally we merge with existing data, but for UI return often just the updates + id is enough or we refetch.
-        // Let's assume the UI updates local state with this return. 
-        // A safer way is to fetch after update if we want full object, but that's 2 reads. 
-        // For now, this is efficient and sufficient as long as 'updates' doesn't delete needed keys.
     },
 
     deleteError: async (id: string): Promise<void> => {
+        // Fetch error before deletion to get code name for log
+        const error = await errorService.getErrorById(id);
+        const codeName = error?.code || id;
+
         await deleteDoc(doc(db, 'error_codes', id));
+
+        await systemService.logActivity(
+            'DELETE',
+            codeName,
+            `Đã xóa mã lỗi: ${codeName}`,
+            'danger'
+        );
     }
 };

@@ -92,7 +92,13 @@ const ActivityLog: React.FC = () => {
                   <span className="text-primary text-sm font-medium">{log.target}</span>
                 </div>
                 <span className="text-[10px] font-mono text-text-secondary bg-background-dark px-2 py-1 rounded-lg">
-                  {log.timestamp}
+                  {new Date(log.timestamp).toLocaleString('en-US', {
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    second: 'numeric',
+                    day: 'numeric',
+                    month: 'short'
+                  })}
                 </span>
               </div>
               <p className="text-xs text-gray-400 leading-relaxed italic">

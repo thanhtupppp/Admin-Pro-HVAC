@@ -1,38 +1,48 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Transaction, AdminUser } from '../types';
 
-// Mock data - sẽ replace bằng real data từ metricsService
-const revenueData = [
-    { month: 'T7', revenue: 4200000 },
-    { month: 'T8', revenue: 5800000 },
-    { month: 'T9', revenue: 7200000 },
-    { month: 'T10', revenue: 9100000 },
-    { month: 'T11', revenue: 11500000 },
-    { month: 'T12', revenue: 14200000 },
-];
+interface DashboardChartsProps {
+    transactions: Transaction[];
+    users: AdminUser[];
+}
 
-const userGrowthData = [
-    { month: 'T7', users: 120 },
-    { month: 'T8', users: 185 },
-    { month: 'T9', users: 250 },
-    { month: 'T10', users: 340 },
-    { month: 'T11', users: 425 },
-    { month: 'T12', users: 520 },
-];
+export const RevenueChart: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
+    const data = useMemo(() => {
+        // Init last 6 months
+        const months: Record<string, number> = {};
+        const now = new Date();
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `T${d.getMonth() + 1}`; // T1, T2...
+            months[key] = 0;
+        }
 
-const planDistributionData = [
-    { name: 'Free', value: 380, color: '#64748b' },
-    { name: 'Premium', value: 140, color: '#00ff88' },
-];
+        // Fill data
+        transactions.forEach(t => {
+            if (t.status === 'completed') {
+                const d = new Date(t.createdAt);
+                // Check if within last 6 months approximately
+                const monthDiff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                if (monthDiff >= 0 && monthDiff <= 5) {
+                    const key = `T${d.getMonth() + 1}`;
+                    if (months[key] !== undefined) {
+                        months[key] += t.amount;
+                    }
+                }
+            }
+        });
 
-export const RevenueChart: React.FC = () => {
+        return Object.entries(months).map(([month, revenue]) => ({ month, revenue }));
+    }, [transactions]);
+
     return (
         <div className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6">
             <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-4">
                 Doanh thu 6 tháng gần đây
             </h3>
             <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={revenueData}>
+                <LineChart data={data}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2a3442" />
                     <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: 12 }} />
                     <YAxis stroke="#64748b" style={{ fontSize: 12 }} />
@@ -61,14 +71,47 @@ export const RevenueChart: React.FC = () => {
     );
 };
 
-export const UserGrowthChart: React.FC = () => {
+export const UserGrowthChart: React.FC<{ users: AdminUser[] }> = ({ users }) => {
+    const data = useMemo(() => {
+        // Similar to revenue, simpler bucket
+        const months: Record<string, number> = {};
+        const now = new Date();
+        // Init buckets
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `T${d.getMonth() + 1}`;
+            months[key] = 0;
+        }
+        
+        // Count accumulated users? Or new users per month? 
+        // Showing "New Users" per month is better for growth chart bars. 
+        // If "Total Growth", use Line/Area. Let's do "New Users" (Bar).
+        
+        users.forEach(u => {
+            // Fallback for users without createdAt (assume old)
+            // Or better, skip them for growth chart or put in "Older" bucket
+            if (u.createdAt) {
+                 const d = new Date(u.createdAt);
+                 const monthDiff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                 if (monthDiff >= 0 && monthDiff <= 5) {
+                     const key = `T${d.getMonth() + 1}`;
+                     if (months[key] !== undefined) {
+                         months[key]++;
+                     }
+                 }
+            }
+        });
+
+        return Object.entries(months).map(([month, count]) => ({ month, users: count }));
+    }, [users]);
+
     return (
         <div className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6">
             <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-4">
-                Tăng trưởng người dùng
+                Tăng trưởng người dùng (Mới)
             </h3>
             <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={userGrowthData}>
+                <BarChart data={data}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2a3442" />
                     <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: 12 }} />
                     <YAxis stroke="#64748b" style={{ fontSize: 12 }} />
@@ -82,14 +125,33 @@ export const UserGrowthChart: React.FC = () => {
                         formatter={(value: number) => `${value} users`}
                     />
                     <Legend wrapperStyle={{ color: '#fff', fontSize: 12 }} />
-                    <Bar dataKey="users" fill="#00ff88" name="Người dùng" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="users" fill="#00ff88" name="Người dùng mới" radius={[8, 8, 0, 0]} />
                 </BarChart>
             </ResponsiveContainer>
         </div>
     );
 };
 
-export const PlanDistributionChart: React.FC = () => {
+export const PlanDistributionChart: React.FC<{ users: AdminUser[] }> = ({ users }) => {
+    const data = useMemo(() => {
+        let free = 0;
+        let premium = 0;
+        let internal = 0;
+        
+        users.forEach(u => {
+            const p = (u.plan || 'Free').toLowerCase();
+            if (p === 'premium') premium++;
+            else if (p === 'internal') internal++;
+            else free++;
+        });
+
+        return [
+            { name: 'Free', value: free, color: '#64748b' },
+            { name: 'Premium', value: premium, color: '#00ff88' },
+            { name: 'Internal', value: internal, color: '#6366f1' }
+        ].filter(d => d.value > 0);
+    }, [users]);
+
     return (
         <div className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6">
             <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-4">
@@ -98,7 +160,7 @@ export const PlanDistributionChart: React.FC = () => {
             <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                     <Pie
-                        data={planDistributionData}
+                        data={data}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -107,7 +169,7 @@ export const PlanDistributionChart: React.FC = () => {
                         fill="#8884d8"
                         dataKey="value"
                     >
-                        {planDistributionData.map((entry, index) => (
+                        {data.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                     </Pie>
@@ -126,14 +188,14 @@ export const PlanDistributionChart: React.FC = () => {
     );
 };
 
-const DashboardCharts: React.FC = () => {
+const DashboardCharts: React.FC<DashboardChartsProps> = ({ transactions, users }) => {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <RevenueChart />
-                <UserGrowthChart />
+                <RevenueChart transactions={transactions} />
+                <UserGrowthChart users={users} />
             </div>
-            <PlanDistributionChart />
+            <PlanDistributionChart users={users} />
         </div>
     );
 };

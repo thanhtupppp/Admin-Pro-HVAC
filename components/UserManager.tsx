@@ -232,8 +232,24 @@ const UserManager: React.FC = () => {
                           {user.avatar}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-white text-sm">
+                          <span className="font-bold text-white text-sm flex items-center gap-2">
                             {user.name || `@${user.username || 'user'}`}
+                            {/* Device Sharing Warning */}
+                            {user.activeSessions && (() => {
+                                const uniqueDevices = new Set(user.activeSessions.map(s => s.deviceId)).size;
+                                if (uniqueDevices > 1) {
+                                    return (
+                                        <div className="group/tooltip relative">
+                                            <span className="material-symbols-outlined text-amber-500 text-[16px] animate-pulse cursor-help">warning</span>
+                                            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 bg-surface-dark border border-amber-500/30 p-2 rounded-lg shadow-xl opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-opacity z-50">
+                                                <p className="text-[10px] text-amber-500 font-bold uppercase mb-1">Cảnh báo bảo mật</p>
+                                                <p className="text-xs text-text-secondary">Tài khoản này đang đăng nhập trên <span className="text-white font-bold">{uniqueDevices}</span> thiết bị khác nhau.</p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
                           </span>
                           <span className="text-xs text-text-secondary">{user.email}</span>
                         </div>

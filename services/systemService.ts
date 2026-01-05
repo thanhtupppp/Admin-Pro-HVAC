@@ -8,7 +8,8 @@ import {
     setDoc,
     query,
     orderBy,
-    limit
+    limit,
+    addDoc
 } from 'firebase/firestore';
 
 export interface SystemSettings {
@@ -40,6 +41,33 @@ export const systemService = {
         } catch (e) {
             console.error("Failed to fetch logs", e);
             return [];
+        }
+    },
+
+    logActivity: async (
+        action: 'CREATE' | 'UPDATE' | 'DELETE' | 'SYSTEM' | 'LOGIN',
+        target: string,
+        details: string,
+        severity: 'info' | 'warning' | 'danger' = 'info'
+    ): Promise<void> => {
+        try {
+            // In a real app, get current user from Auth Context
+            // For now, we simulate a mock admin user
+            const mockUser = { id: 'admin_01', name: 'Admin User' };
+            
+            const newLog: Omit<ActivityEntry, 'id'> = {
+                userId: mockUser.id,
+                userName: mockUser.name,
+                action,
+                target,
+                details,
+                timestamp: new Date().toISOString(), // Consider serverTimestamp() for consistency
+                severity
+            };
+
+            await addDoc(collection(db, 'activity_logs'), newLog);
+        } catch (e) {
+            console.error("Failed to log activity", e);
         }
     },
 

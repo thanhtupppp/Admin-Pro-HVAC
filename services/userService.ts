@@ -52,7 +52,8 @@ export const userService = {
             ...userData,
             lastLogin: 'Chưa đăng nhập',
             avatar: calculateAvatar(userData.username),
-            status: userData.status || 'active'
+            status: userData.status || 'active',
+            createdAt: new Date().toISOString()
         };
 
         const docRef = await addDoc(collection(db, 'users'), newUser);
@@ -89,5 +90,47 @@ export const userService = {
         await updateDoc(docRef, { status: newStatus });
 
         return { ...userData, id: docSnap.id, status: newStatus };
+    },
+
+    logSession: async (userId: string, session: { deviceId: string, userAgent: string, ip?: string }): Promise<void> => {
+        try {
+            const docRef = doc(db, 'users', userId);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const userData = docSnap.data() as AdminUser;
+                let sessions = userData.activeSessions || [];
+                const now = new Date().toISOString();
+
+                // 1. Remove expired sessions (> 7 days inactivity)
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                sessions = sessions.filter(s => s.lastActive > sevenDaysAgo);
+
+                // 2. Check if device exists
+                const existingSessionIndex = sessions.findIndex(s => s.deviceId === session.deviceId);
+
+                if (existingSessionIndex >= 0) {
+                    // Update existing
+                    sessions[existingSessionIndex] = {
+                        ...sessions[existingSessionIndex],
+                        lastActive: now,
+                        userAgent: session.userAgent // Update UA in case browser updated
+                    };
+                } else {
+                    // Add new
+                    sessions.push({
+                        deviceId: session.deviceId,
+                        userAgent: session.userAgent,
+                        ip: session.ip,
+                        lastActive: now,
+                        deviceType: session.userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop'
+                    });
+                }
+
+                await updateDoc(docRef, { activeSessions: sessions });
+            }
+        } catch (e) {
+            console.error("Failed to log session", e);
+        }
     }
 };

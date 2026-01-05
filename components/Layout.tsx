@@ -86,7 +86,13 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, onLogout, chil
   }, [currentView]);
 
   const handleMarkAllRead = () => {
-    // Mark all as read (update state locally)
+    // Mark all as read (update persistent storage)
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length > 0) {
+        notificationService.markAsRead(unreadIds);
+    }
+    
+    // Update state locally for immediate feedback
     setNotifications(notifications.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
   };

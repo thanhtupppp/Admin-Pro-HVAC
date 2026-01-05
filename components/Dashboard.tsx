@@ -3,7 +3,7 @@ import { errorService } from '../services/errorService';
 import { brandService } from '../services/brandService';
 import { userService } from '../services/userService';
 import { paymentService } from '../services/paymentService';
-import { ErrorCode } from '../types';
+import { ErrorCode, AdminUser, Transaction } from '../types';
 import DashboardCharts from './DashboardCharts';
 
 const Dashboard: React.FC = () => {
@@ -15,6 +15,8 @@ const Dashboard: React.FC = () => {
     pendingTransactions: 0
   });
   const [recentErrors, setRecentErrors] = useState<ErrorCode[]>([]);
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -34,6 +36,9 @@ const Dashboard: React.FC = () => {
           pending: errors.filter(e => e.status === 'pending').length,
           pendingTransactions: transactions.filter(t => t.status === 'pending').length
         });
+        
+        setAllUsers(users);
+        setAllTransactions(transactions);
 
         // Take last 5 errors (or top 5 depending on sorting, assuming current order is relevant)
         setRecentErrors(errors.slice(0, 5));
@@ -72,7 +77,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Analytics Charts */}
-      <DashboardCharts />
+      <DashboardCharts transactions={allTransactions} users={allUsers} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-surface-dark border border-border-dark/50 rounded-2xl p-6">
