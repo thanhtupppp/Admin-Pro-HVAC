@@ -10,6 +10,21 @@ const FieldDispatch: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
 
+    // Job detail sidebar
+    const [selectedJob, setSelectedJob] = useState<ServiceJob | null>(null);
+    const [showJobDetail, setShowJobDetail] = useState(false);
+
+    // Technicians (mock data - in production, fetch from users collection)
+    const [technicians] = useState([
+        { id: 'tech1', name: 'Nguyễn Văn A' },
+        { id: 'tech2', name: 'Trần Văn B' },
+        { id: 'tech3', name: 'Lê Văn C' },
+    ]);
+
+    // Filters
+    const [filterTechnician, setFilterTechnician] = useState('ALL');
+    const [filterPriority, setFilterPriority] = useState('ALL');
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -36,9 +51,16 @@ const FieldDispatch: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
+    // Filter jobs
+    const filteredJobs = jobs.filter(job => {
+        if (filterTechnician !== 'ALL' && job.technicianId !== filterTechnician) return false;
+        if (filterPriority !== 'ALL' && job.priority !== filterPriority) return false;
+        return true;
+    });
+
     // Get jobs for specific column
     const getJobsByStatus = (status: JobStatus) => {
-        return jobs.filter(job => job.status === status);
+        return filteredJobs.filter(job => job.status === status);
     };
 
     // Handle drag end
@@ -75,6 +97,23 @@ const FieldDispatch: React.FC = () => {
         }
     };
 
+    const handleJobClick = (job: ServiceJob) => {
+        setSelectedJob(job);
+        setShowJobDetail(true);
+    };
+
+    const handleReassign = async (jobId: string, techId: string) => {
+        const tech = technicians.find(t => t.id === techId);
+        if (!tech) return;
+
+        try {
+            await fieldDispatchService.reassignJob(jobId, techId, tech.name);
+            alert(`✅ Đã phân công cho ${tech.name}`);
+        } catch (error) {
+            alert('❌ Phân công thất bại!');
+        }
+    };
+
     // Stats calculation
     const stats = {
         total: jobs.length,
@@ -100,6 +139,32 @@ const FieldDispatch: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px]">add</span>
                     New Job
                 </button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex gap-4">
+                <select
+                    value={filterTechnician}
+                    onChange={(e) => setFilterTechnician(e.target.value)}
+                    className="bg-surface-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                    <option value="ALL">All Technicians</option>
+                    {technicians.map(tech => (
+                        <option key={tech.id} value={tech.id}>{tech.name}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={filterPriority}
+                    onChange={(e) => setFilterPriority(e.target.value)}
+                    className="bg-surface-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                    <option value="ALL">All Priorities</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
             </div>
 
             {/* Stats */}
@@ -168,6 +233,7 @@ const FieldDispatch: React.FC = () => {
                                                 key={job.id}
                                                 job={job}
                                                 onUpdate={() => {/* Trigger refresh */ }}
+                                                onClick={() => handleJobClick(job)}
                                             />
                                         ))
                                     )}
@@ -186,6 +252,146 @@ const FieldDispatch: React.FC = () => {
                         setShowAddModal(false);
                     }}
                 />
+            )}
+
+            {/* Job Detail Sidebar */}
+            {showJobDetail && selectedJob && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex justify-end" onClick={() => setShowJobDetail(false)}>
+                    <div
+                        className="w-full max-w-md bg-surface-dark border-l border-border-dark p-6 overflow-y-auto animate-in slide-in-from-right"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white">Job Details</h2>
+                            <button
+                                onClick={() => setShowJobDetail(false)}
+                                className="text-text-secondary hover:text-white transition-colors"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        {/* Customer Info */}
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Customer</label>
+                                <p className="text-white font-medium">{selectedJob.customerName}</p>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Phone</label>
+                                <p className="text-white">{selectedJob.customerPhone}</p>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Address</label>
+                                <p className="text-white">{selectedJob.address}</p>
+                            </div>
+                        </div>
+
+                        {/* Job Info */}
+                        <div className="space-y-4 mb-6 pb-6 border-b border-white/5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Status</label>
+                                    <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded capitalize">
+                                        {selectedJob.status.replace('_', ' ')}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Priority</label>
+                                    <span className={`px-2 py-1 text-xs font-medium rounded capitalize ${selectedJob.priority === 'urgent' ? 'bg-red-500/10 text-red-500' :
+                                            selectedJob.priority === 'high' ? 'bg-orange-500/10 text-orange-500' :
+                                                selectedJob.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
+                                                    'bg-green-500/10 text-green-500'
+                                        }`}>
+                                        {selectedJob.priority}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Scheduled Time</label>
+                                <p className="text-white">
+                                    {selectedJob.scheduledTime.toDate().toLocaleString('vi-VN')}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Est. Duration</label>
+                                    <p className="text-white">{selectedJob.estimatedDuration} min</p>
+                                </div>
+
+                                {selectedJob.actualDuration && (
+                                    <div>
+                                        <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Actual Duration</label>
+                                        <p className="text-white">{selectedJob.actualDuration} min</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedJob.errorCode && (
+                                <div>
+                                    <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Error Code</label>
+                                    <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-sm font-mono rounded">
+                                        {selectedJob.errorCode}
+                                    </span>
+                                </div>
+                            )}
+
+                            {selectedJob.notes && (
+                                <div>
+                                    <label className="text-xs font-bold text-text-secondary uppercase block mb-1">Notes</label>
+                                    <p className="text-white text-sm">{selectedJob.notes}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Technician Assignment */}
+                        <div className="mb-6">
+                            <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Assigned Technician</label>
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+                                    <span className="text-sm font-bold text-primary">
+                                        {selectedJob.technicianName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                    </span>
+                                </div>
+                                <span className="text-white font-medium">{selectedJob.technicianName}</span>
+                            </div>
+
+                            <select
+                                value={selectedJob.technicianId}
+                                onChange={(e) => handleReassign(selectedJob.id!, e.target.value)}
+                                className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            >
+                                {technicians.map(tech => (
+                                    <option key={tech.id} value={tech.id}>{tech.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Timestamps */}
+                        <div className="space-y-2 text-xs text-text-secondary">
+                            <div className="flex justify-between">
+                                <span>Created:</span>
+                                <span>{selectedJob.createdAt.toDate().toLocaleString('vi-VN')}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Updated:</span>
+                                <span>{selectedJob.updatedAt.toDate().toLocaleString('vi-VN')}</span>
+                            </div>
+                            {selectedJob.completedAt && (
+                                <div className="flex justify-between text-green-500">
+                                    <span>Completed:</span>
+                                    <span>{selectedJob.completedAt.toDate().toLocaleString('vi-VN')}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

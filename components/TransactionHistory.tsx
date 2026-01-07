@@ -6,7 +6,10 @@ const TransactionHistory: React.FC = () => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterMethod, setFilterMethod] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
     useEffect(() => {
         loadTransactions();
@@ -26,9 +29,25 @@ const TransactionHistory: React.FC = () => {
 
     const filteredTransactions = transactions.filter(tx => {
         const matchesStatus = filterStatus === 'all' || tx.status === filterStatus;
+        const matchesMethod = filterMethod === 'all' || tx.method === filterMethod;
         const matchesSearch = tx.userId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tx.planName?.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchesStatus && matchesSearch;
+
+        // Date range filter
+        let matchesDateRange = true;
+        if (startDate || endDate) {
+            const txDate = new Date(tx.createdAt);
+            if (startDate) {
+                matchesDateRange = matchesDateRange && txDate >= new Date(startDate);
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                matchesDateRange = matchesDateRange && txDate <= end;
+            }
+        }
+
+        return matchesStatus && matchesMethod && matchesSearch && matchesDateRange;
     });
 
     const handleApprove = async (id: string) => {
@@ -53,6 +72,14 @@ const TransactionHistory: React.FC = () => {
         }
     };
 
+    const handleClearFilters = () => {
+        setFilterStatus('all');
+        setFilterMethod('all');
+        setSearchTerm('');
+        setStartDate('');
+        setEndDate('');
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -70,7 +97,7 @@ const TransactionHistory: React.FC = () => {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-semibold text-text-primary mb-1">Quản lý Thanh toán</h1>
-                    <p className="text-sm text-text-muted">{transactions.length} giao dịch</p>
+                    <p className="text-sm text-text-muted">{filteredTransactions.length}/{transactions.length} giao dịch</p>
                 </div>
             </div>
 
@@ -90,24 +117,67 @@ const TransactionHistory: React.FC = () => {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4">
-                <input
-                    type="text"
-                    placeholder="Tìm kiếm giao dịch..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="flex-1 bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
-                />
-                <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
-                >
-                    <option value="all">Tất cả trạng thái</option>
-                    <option value="pending">Chờ duyệt</option>
-                    <option value="completed">Thành công</option>
-                    <option value="failed">Thất bại</option>
-                </select>
+            <div className="space-y-4">
+                <div className="flex gap-4">
+                    <input
+                        type="text"
+                        placeholder="Tìm kiếm giao dịch..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="flex-1 bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                    />
+                    <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                    >
+                        <option value="all">Tất cả trạng thái</option>
+                        <option value="pending">Chờ duyệt</option>
+                        <option value="completed">Thành công</option>
+                        <option value="failed">Thất bại</option>
+                    </select>
+                    <select
+                        value={filterMethod}
+                        onChange={(e) => setFilterMethod(e.target.value)}
+                        className="bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                    >
+                        <option value="all">Tất cả phương thức</option>
+                        <option value="vietqr">VietQR</option>
+                        <option value="bank_transfer">Chuyển khoản</option>
+                        <option value="momo">MoMo</option>
+                        <option value="card">Thẻ</option>
+                    </select>
+                </div>
+
+                {/* Date Range */}
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-text-secondary">Từ ngày:</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-bg-soft border border-border-base rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-text-secondary">Đến ngày:</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-bg-soft border border-border-base rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                        />
+                    </div>
+                    {(startDate || endDate || filterStatus !== 'all' || filterMethod !== 'all' || searchTerm) && (
+                        <button
+                            onClick={handleClearFilters}
+                            className="px-4 py-2 bg-bg-soft hover:bg-border-base text-text-primary rounded-lg text-sm transition-all"
+                        >
+                            Xóa bộ lọc
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Transactions Table */}
@@ -118,6 +188,7 @@ const TransactionHistory: React.FC = () => {
                             <th>Thời gian</th>
                             <th>Người dùng</th>
                             <th>Gói dịch vụ</th>
+                            <th>Phương thức</th>
                             <th>Số tiền</th>
                             <th>Trạng thái</th>
                             <th className="text-right">Thao tác</th>
@@ -126,22 +197,36 @@ const TransactionHistory: React.FC = () => {
                     <tbody>
                         {filteredTransactions.map((tx) => (
                             <tr key={tx.id}>
-                                <td className="font-mono text-text-muted text-sm">
+                                <td className="font-mono text-text-muted text-sm whitespace-nowrap">
                                     {new Date(tx.createdAt).toLocaleString('vi-VN')}
                                 </td>
                                 <td className="font-medium text-text-primary">{tx.userId}</td>
                                 <td className="text-text-secondary">{tx.planName || '—'}</td>
-                                <td className="font-mono text-brand-primary font-medium">
+                                <td>
+                                    <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-medium rounded capitalize">
+                                        {tx.method === 'vietqr' ? 'VietQR' :
+                                            tx.method === 'bank_transfer' ? 'Chuyển khoản' :
+                                                tx.method === 'momo' ? 'MoMo' :
+                                                    tx.method === 'card' ? 'Thẻ' :
+                                                        tx.method || '—'}
+                                    </span>
+                                </td>
+                                <td className="font-mono text-brand-primary font-medium whitespace-nowrap">
                                     {tx.amount.toLocaleString('vi-VN')} VNĐ
                                 </td>
                                 <td>
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${tx.status === 'completed' ? 'status-ok' :
-                                        tx.status === 'pending' ? 'status-warn' :
-                                            'status-error'
+                                    <span className={`px-2 py-1 rounded text-xs font-medium inline-flex items-center gap-1 ${tx.status === 'completed' ? 'status-ok' :
+                                            tx.status === 'pending' ? 'status-warn' :
+                                                'status-error'
                                         }`}>
-                                        {tx.status === 'completed' ? '● Thành công' :
-                                            tx.status === 'pending' ? '⚠ Chờ duyệt' :
-                                                '✕ Thất bại'}
+                                        <span className="material-symbols-outlined text-[14px]">
+                                            {tx.status === 'completed' ? 'check_circle' :
+                                                tx.status === 'pending' ? 'schedule' :
+                                                    'cancel'}
+                                        </span>
+                                        {tx.status === 'completed' ? 'Thành công' :
+                                            tx.status === 'pending' ? 'Chờ duyệt' :
+                                                'Thất bại'}
                                     </span>
                                 </td>
                                 <td className="text-right">
@@ -149,17 +234,17 @@ const TransactionHistory: React.FC = () => {
                                         <div className="flex items-center justify-end gap-2">
                                             <button
                                                 onClick={() => handleApprove(tx.id)}
-                                                className="text-text-secondary hover:text-status-ok transition-colors"
+                                                className="px-3 py-1 bg-status-ok/10 hover:bg-status-ok text-status-ok hover:text-white transition-all rounded text-xs font-medium"
                                                 title="Duyệt"
                                             >
-                                                <span className="material-symbols-outlined text-xl">check_circle</span>
+                                                Duyệt
                                             </button>
                                             <button
                                                 onClick={() => handleReject(tx.id)}
-                                                className="text-text-secondary hover:text-status-error transition-colors"
+                                                className="px-3 py-1 bg-status-error/10 hover:bg-status-error text-status-error hover:text-white transition-all rounded text-xs font-medium"
                                                 title="Từ chối"
                                             >
-                                                <span className="material-symbols-outlined text-xl">cancel</span>
+                                                Từ chối
                                             </button>
                                         </div>
                                     )}
@@ -171,7 +256,7 @@ const TransactionHistory: React.FC = () => {
 
                 {filteredTransactions.length === 0 && (
                     <div className="text-center py-12 text-text-muted">
-                        {searchTerm || filterStatus !== 'all'
+                        {searchTerm || filterStatus !== 'all' || filterMethod !== 'all' || startDate || endDate
                             ? 'Không tìm thấy giao dịch phù hợp'
                             : 'Chưa có giao dịch nào'}
                     </div>

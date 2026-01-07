@@ -9,20 +9,25 @@ interface SettingsProps {
   onSave?: () => void;
 }
 
+// Assuming DEFAULT_SETTINGS is defined elsewhere or should be inferred from the original settings state
+// For now, I'll define it based on the original settings state initialization.
+const DEFAULT_SETTINGS: SystemSettings = {
+  appName: 'Admin Pro Console',
+  maintenanceMode: false,
+  aiBudget: 32768,
+  aiModel: 'gemini-2.5-flash',
+  geminiApiKey: ''
+};
+
 const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   const [activeSection, setActiveSection] = useState('general');
-  const [hasKey, setHasKey] = useState<boolean>(false);
-  const [manualKey, setManualKey] = useState<string>('');
-  const [showApiKey, setShowApiKey] = useState<boolean>(false);
-  const [isTestingApi, setIsTestingApi] = useState<boolean>(false);
-  const [settings, setSettings] = useState<SystemSettings>({
-    appName: 'Admin Pro Console',
-    maintenanceMode: false,
-    aiBudget: 32768,
-    aiModel: 'gemini-2.5-flash',
-    geminiApiKey: ''
-  });
+  // Removed hasKey and manualKey states as per the provided code edit
+  const [isTestingApi, setIsTestingApi] = useState<boolean>(false); // Kept original name for consistency with usage
+  const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTesting, setIsTesting] = useState(false); // New state
+  const [testResult, setTestResult] = useState<string>(''); // New state
+  const [showApiKey, setShowApiKey] = useState(false); // Re-declared, assuming this is the intended final state for showApiKey
 
   useEffect(() => {
     loadSettings();
@@ -33,73 +38,59 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
     try {
       const data = await systemService.getSettings();
       setSettings(data);
-      // Load API key from Firebase
-      if (data.geminiApiKey) {
-        setManualKey(data.geminiApiKey);
-        setHasKey(true);
-      }
-    } catch (e) {
-      console.error(e);
+      // Removed manualKey and hasKey logic as per the provided code edit
+    } catch (error) {
+      console.error('Failed to load settings', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleUpdateKey = async () => {
-    if ((window as any).aistudio && typeof (window as any).aistudio.openSelectKey === 'function') {
-      try {
-        await (window as any).aistudio.openSelectKey();
-        setHasKey(true);
-      } catch (error) {
-        console.error("Failed to open key selector", error);
-      }
+  const handleSave = async () => {
+    try {
+      await systemService.updateSettings(settings);
+      alert("✅ Cập nhật cài đặt thành công!");
+      if (onSave) onSave();
+    } catch (e) {
+      alert("❌ Lỗi khi lưu cài đặt.");
     }
   };
 
-  const handleTestGeminiApi = async () => {
-    if (!manualKey) {
-      alert('⚠️ Vui lòng nhập API key trước khi test');
+  const testGeminiConnection = async () => {
+    if (!settings.geminiApiKey) {
+      setTestResult('❌ Vui lòng nhập API key');
       return;
     }
 
-    setIsTestingApi(true);
+    setIsTesting(true);
+    setTestResult('⏳ Đang kiểm tra kết nối...');
+
     try {
-      // Test with a simple prompt
       const { GoogleGenAI } = await import('@google/genai');
-      const genAI = new GoogleGenAI({ apiKey: manualKey });
+      const genAI = new GoogleGenAI({ apiKey: settings.geminiApiKey });
       const model = settings.aiModel;
 
-      const result = await genAI.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: 'Hello' }] }]
-      });
-
-      const text = result.text;
+      const result = await model.generateContent('Respond with: Connection successful');
+      const text = result.response.text();
 
       if (text) {
-        alert(`✅ API Key hợp lệ!\n\nModel: ${settings.aiModel}\nPhản hồi test: "${text.slice(0, 50)}..."`);
+        setTestResult('✅ Kết nối thành công! API key hợp lệ.');
       }
     } catch (error: any) {
-      alert(`❌ API Key không hợp lệ!\n\nLỗi: ${error.message || 'Không thể kết nối với Gemini API'}`);
+      setTestResult(`❌ Lỗi: ${error.message || 'Không thể kết nối'}`);
     } finally {
-      setIsTestingApi(false);
+      setIsTesting(false);
     }
   };
 
-  const handleSave = async () => {
-    try {
-      // Include API key in settings update
-      const updatedSettings = {
-        ...settings,
-        geminiApiKey: manualKey
-      };
-      await systemService.updateSettings(updatedSettings);
-      setSettings(updatedSettings);
-      alert("Cập nhật cài đặt thành công!");
-      if (onSave) onSave();
-    } catch (e) {
-      alert("Lỗi khi lưu cài đặt.");
-    }
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePort = (port: string): boolean => {
+    const portNum = parseInt(port);
+    return !isNaN(portNum) && portNum >= 1 && portNum <= 65535;
   };
 
   const handleChange = (field: keyof SystemSettings, value: any) => {
@@ -196,58 +187,50 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                       <h4 className="text-sm font-bold text-white">Quản lý API Key</h4>
                       <p className="text-[10px] text-text-secondary mt-1">Cấu hình chìa khóa truy cập bảo mật cho các tác vụ xử lý nâng cao.</p>
                     </div>
-                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-bold uppercase tracking-widest ${hasKey ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full bg-current ${hasKey ? 'animate-pulse' : ''}`}></span>
-                      {hasKey ? 'Đã kết nối' : 'Chưa thiết lập'}
-                    </div>
                   </div>
 
                   <div className="relative">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-2 block">Cấu hình Chìa khóa (API Key)</label>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex-1 relative">
-                        <input
-                          type={showApiKey ? "text" : "password"}
-                          value={manualKey}
-                          onChange={(e) => {
-                            setManualKey(e.target.value);
-                            localStorage.setItem('GEMINI_API_KEY', e.target.value);
-                            setHasKey(!!e.target.value);
-                          }}
-                          placeholder="Nhập Gemini API Key tại đây..."
-                          className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 pr-24 text-white focus:ring-1 focus:ring-primary outline-none font-mono text-sm"
-                        />
+                    <div>
+                      <label className="text-xs font-bold text-text-secondary uppercase mb-2 block">
+                        Gemini API Key
+                        <span className="text-xs text-text-muted font-normal normal-case ml-2">
+                          (Sẽ được mã hóa khi lưu)
+                        </span>
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type={showApiKey ? 'text' : 'password'}
+                            value={settings.geminiApiKey}
+                            onChange={(e) => setSettings({ ...settings, geminiApiKey: e.target.value })}
+                            placeholder="AIza..."
+                            className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none font-mono text-sm pr-12"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white transition-colors"
+                            title={showApiKey ? 'Ẩn key' : 'Hiện key'}
+                          >
+                            <span className="material-symbols-outlined text-[20px]">
+                              {showApiKey ? 'visibility_off' : 'visibility'}
+                            </span>
+                          </button>
+                        </div>
                         <button
-                          type="button"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white transition-colors"
-                          title={showApiKey ? "Ẩn API key" : "Hiện API key"}
+                          onClick={testGeminiConnection}
+                          disabled={isTesting || !settings.geminiApiKey}
+                          className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white font-bold rounded-xl border border-border-dark transition-all flex items-center gap-2"
                         >
-                          <span className="material-symbols-outlined text-sm">
-                            {showApiKey ? 'visibility_off' : 'visibility'}
-                          </span>
+                          <span className="material-symbols-outlined text-[18px]">verified</span>
+                          {isTesting ? 'Testing...' : 'Test'}
                         </button>
                       </div>
-
-                      {/* Masked preview when not showing */}
-                      {!showApiKey && manualKey && (
-                        <div className="text-xs font-mono text-text-secondary bg-background-dark/50 px-3 py-2 rounded-lg border border-border-dark/30">
-                          🔒 {maskApiKey(manualKey)}
-                        </div>
+                      {testResult && (
+                        <p className={`text-xs mt-2 ${testResult.includes('✅') ? 'text-green-400' : testResult.includes('❌') ? 'text-red-400' : 'text-yellow-400'}`}>
+                          {testResult}
+                        </p>
                       )}
-
-                      {/* Test API button */}
-                      <button
-                        type="button"
-                        onClick={handleTestGeminiApi}
-                        disabled={!manualKey || isTestingApi}
-                        className="w-full sm:w-auto px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-border-dark transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">
-                          {isTestingApi ? 'progress_activity' : 'verified'}
-                        </span>
-                        {isTestingApi ? 'Đang kiểm tra...' : 'Test API Connection'}
-                      </button>
                     </div>
                   </div>
 
@@ -274,7 +257,12 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Model mặc định</label>
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest flex items-center gap-2">
+                      Model mặc định
+                      <span className="material-symbols-outlined text-[14px] text-text-muted cursor-help" title="Flash: Nhanh & rẻ. Pro: Mạnh hơn cho tasks phức tạp. Thinking: Có khả năng suy luận chain-of-thought">
+                        help
+                      </span>
+                    </label>
                     <select
                       value={settings.aiModel}
                       onChange={(e) => {
@@ -343,7 +331,7 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
           Lưu thay đổi
         </button>
       </div>
-    </div>
+    </div >
   );
 };
 

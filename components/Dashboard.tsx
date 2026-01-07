@@ -69,8 +69,17 @@ const Dashboard: React.FC = () => {
           <h1 className="text-2xl font-semibold text-text-primary mb-1">Tổng quan hệ thống</h1>
           <p className="text-sm text-text-muted">Admin Pro HVAC Management Dashboard</p>
         </div>
-        <div className="text-xs text-text-muted font-mono">
-          Cập nhật: {new Date().toLocaleTimeString('vi-VN')}
+        <div className="flex items-center gap-4">
+          <div className="text-xs text-text-muted font-mono">
+            Cập nhật: {new Date().toLocaleTimeString('vi-VN')}
+          </div>
+          <button
+            onClick={() => dashboardService.exportToPDF(stats)}
+            className="px-4 py-2 bg-brand-primary hover:bg-brand-accent text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-lg">download</span>
+            Xuất PDF
+          </button>
         </div>
       </div>
 

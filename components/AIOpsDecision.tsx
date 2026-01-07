@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { metricsService } from '../services/metricsService';
 
 interface AIUsageData {
     requestsUsed: number;
@@ -7,17 +8,29 @@ interface AIUsageData {
     tokensOutput: number;
     estimatedCost: number;
     model: string;
+    lastUpdated?: Date;
 }
 
 const AIOpsDecision: React.FC = () => {
     const [usage, setUsage] = useState<AIUsageData>({
-        requestsUsed: 45,
+        requestsUsed: 0,
         requestsLimit: 100,
-        tokensInput: 125000,
-        tokensOutput: 32000,
-        estimatedCost: 12.5,
+        tokensInput: 0,
+        tokensOutput: 0,
+        estimatedCost: 0,
         model: 'gemini-2.5-flash'
     });
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // Subscribe to real-time metrics
+        const unsubscribe = metricsService.subscribeToMetrics((metrics) => {
+            setUsage(metrics);
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const usagePercentage = (usage.requestsUsed / usage.requestsLimit) * 100;
 

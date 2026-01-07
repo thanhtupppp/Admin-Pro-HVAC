@@ -12,6 +12,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [errors, setErrors] = useState<ErrorCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [previewError, setPreviewError] = useState<ErrorCode | null>(null);
 
   useEffect(() => {
     loadErrors();
@@ -134,6 +135,13 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button
+                      onClick={() => setPreviewError(error)}
+                      className="text-text-secondary hover:text-blue-400 transition-colors"
+                      title="Xem nhanh"
+                    >
+                      <span className="material-symbols-outlined text-xl">visibility</span>
+                    </button>
+                    <button
                       onClick={() => onEdit(error.id)}
                       className="text-text-secondary hover:text-brand-primary transition-colors"
                       title="Chỉnh sửa"
@@ -170,6 +178,119 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
           title="Hiệu suất cao"
           message={`Hệ thống đang quản lý ${errors.length} mã lỗi. Sử dụng bộ lọc để tìm kiếm nhanh hơn.`}
         />
+      )}
+
+      {/* Preview Drawer */}
+      {previewError && (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setPreviewError(null)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div
+            className="relative w-full max-w-2xl bg-background-dark border-l border-border-dark shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div className="sticky top-0 bg-background-dark/95 backdrop-blur-sm border-b border-border-dark p-6 flex items-start justify-between z-10">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl font-mono font-bold text-brand-primary">{previewError.code}</span>
+                  <span className={`px-2 py-1 rounded text-xs font-bold ${previewError.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                    {previewError.status === 'active' ? 'Đã duyệt' : 'Chờ duyệt'}
+                  </span>
+                </div>
+                <h2 className="text-xl font-bold text-white">{previewError.title}</h2>
+                <p className="text-sm text-text-secondary mt-1">{previewError.brand} {previewError.modelName && `• ${previewError.modelName}`}</p>
+              </div>
+              <button
+                onClick={() => setPreviewError(null)}
+                className="text-text-secondary hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
+              >
+                <span className="material-symbols-outlined text-2xl">close</span>
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="p-6 space-y-6">
+              {/* Diagnosis */}
+              {previewError.diagnosis && (
+                <div className="bg-bg-soft rounded-xl p-4 border border-border-base">
+                  <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-yellow-500">search</span>
+                    Chẩn đoán
+                  </h3>
+                  <p className="text-sm text-text-secondary">{previewError.diagnosis}</p>
+                </div>
+              )}
+
+              {/* Repair Steps */}
+              {previewError.steps && previewError.steps.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-green-500">build</span>
+                    Các bước sửa chữa
+                  </h3>
+                  <div className="space-y-2">
+                    {previewError.steps.map((step, idx) => (
+                      <div key={idx} className="flex gap-3 bg-bg-soft rounded-lg p-3 border border-border-base">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center text-xs font-bold">
+                          {idx + 1}
+                        </span>
+                        <p className="text-sm text-text-secondary">{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Components & Tools */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {previewError.components && previewError.components.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-text-secondary uppercase mb-2">Linh kiện liên quan</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {previewError.components.map((comp, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded text-xs font-medium">
+                          {comp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {previewError.tools && previewError.tools.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-text-secondary uppercase mb-2">Công cụ cần thiết</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {previewError.tools.map((tool, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-orange-500/10 text-orange-400 rounded text-xs font-medium">
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-border-dark">
+                <button
+                  onClick={() => {
+                    setPreviewError(null);
+                    onEdit(previewError.id);
+                  }}
+                  className="flex-1 px-4 py-2 bg-brand-primary hover:bg-brand-accent text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-lg">edit</span>
+                  Chỉnh sửa
+                </button>
+                <button
+                  onClick={() => setPreviewError(null)}
+                  className="px-4 py-2 bg-bg-soft hover:bg-white/5 text-text-secondary hover:text-white font-medium rounded-lg transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

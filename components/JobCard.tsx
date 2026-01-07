@@ -6,9 +6,10 @@ import { ServiceJob, JobPriority } from '../services/fieldDispatchService';
 interface JobCardProps {
     job: ServiceJob;
     onUpdate: () => void;
+    onClick?: () => void;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, onUpdate }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, onUpdate, onClick }) => {
     const {
         attributes,
         listeners,
@@ -50,6 +51,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onUpdate }) => {
             style={style}
             {...attributes}
             {...listeners}
+            onClick={onClick}
             className="bg-background-dark border border-border-dark rounded-xl p-3 cursor-grab active:cursor-grabbing hover:border-primary/30 transition-all"
         >
             {/* Header */}

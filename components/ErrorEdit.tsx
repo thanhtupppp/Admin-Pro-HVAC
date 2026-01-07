@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { errorService } from '../services/errorService';
+import { brandService } from '../services/brandService';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import SortableStepItem from './SortableStepItem';
 import { ErrorCode } from '../types';
 import { useDebounce } from '../utils/hooks';
 
@@ -15,6 +19,17 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<ErrorCode | null>(null);
+  const [brands, setBrands] = useState<string[]>([]);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Drag & Drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Prevent accidental drags
+      },
+    })
+  );
 
   // Autocomplete data
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
@@ -160,8 +175,28 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
   };
 
   const removeStep = (index: number) => {
-    const newSteps = formData.steps.filter((_, i) => i !== index);
-    setFormData({ ...formData, steps: newSteps });
+    setFormData(prev => ({
+      ...prev,
+      steps: prev.steps.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Handle drag end for steps
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = formData.steps.findIndex((_, i) => `step-${i}` === active.id);
+    const newIndex = formData.steps.findIndex((_, i) => `step-${i}` === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const newSteps = [...formData.steps];
+      const [movedStep] = newSteps.splice(oldIndex, 1);
+      newSteps.splice(newIndex, 0, movedStep);
+
+      setFormData(prev => ({ ...prev, steps: newSteps }));
+    }
   };
 
   const addTag = (field: 'components' | 'tools' | 'videos', value: string) => {
@@ -386,38 +421,39 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
             <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
               <span className="material-symbols-outlined text-green-500">build</span>
               Quy trình sửa chữa
+              <span className="text-xs text-text-secondary font-normal ml-2">(Kéo thả để sắp xếp)</span>
             </h2>
-            <div className="space-y-4">
-              {formData.steps.map((step, index) => (
-                <div key={index} className="flex gap-4">
-                  <span className="w-8 h-8 rounded-lg bg-background-dark flex items-center justify-center font-bold text-text-secondary border border-border-dark shrink-0">
-                    {index + 1}
-                  </span>
-                  <input
-                    type="text"
-                    value={step}
-                    onChange={(e) => updateStep(index, e.target.value)}
-                    className="flex-1 bg-background-dark border border-border-dark rounded-xl px-4 py-2 text-white focus:ring-1 focus:ring-primary outline-none"
-                    placeholder={`Bước ${index + 1}...`}
-                  />
-                  {formData.steps.length > 1 && (
-                    <button
-                      onClick={() => removeStep(index)}
-                      className="text-text-secondary hover:text-red-400 transition-colors"
-                    >
-                      <span className="material-symbols-outlined">delete</span>
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                onClick={addStep}
-                className="flex items-center gap-2 text-primary font-bold text-sm hover:underline pl-12"
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={formData.steps.map((_, i) => `step-${i}`)}
+                strategy={verticalListSortingStrategy}
               >
-                <span className="material-symbols-outlined text-lg">add</span>
-                Thêm bước thực hiện
-              </button>
-            </div>
+                <div className="space-y-4">
+                  {formData.steps.map((step, index) => (
+                    <SortableStepItem
+                      key={`step-${index}`}
+                      id={`step-${index}`}
+                      index={index}
+                      step={step}
+                      onUpdate={(value) => updateStep(index, value)}
+                      onRemove={() => removeStep(index)}
+                      canRemove={formData.steps.length > 1}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            <button
+              onClick={addStep}
+              className="flex items-center gap-2 text-primary font-bold text-sm hover:underline pl-12 mt-4"
+            >
+              <span className="material-symbols-outlined text-lg">add</span>
+              Thêm bước thực hiện
+            </button>
           </section>
 
           {/* Components & Tools */}

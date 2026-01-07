@@ -34,6 +34,15 @@ export interface Plan {
     updatedAt: string;
 }
 
+// Simplified type for pricing display
+export interface PricingPlan {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    features: string[];
+}
+
 export const planService = {
     /**
      * Lấy tất cả plans
