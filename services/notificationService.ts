@@ -4,9 +4,30 @@ import { db } from './firebaseConfig';
 
 export const notificationService = {
     /**
+     * Helper: Get read IDs from LocalStorage
+     */
+    getReadIds: (): string[] => {
+        try {
+            const stored = localStorage.getItem('admin_read_notifications');
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            return [];
+        }
+    },
+
+    /**
+     * Helper: Mark IDs as read
+     */
+    markAsRead: (ids: string[]) => {
+        const current = notificationService.getReadIds();
+        const newIds = [...new Set([...current, ...ids])];
+        localStorage.setItem('admin_read_notifications', JSON.stringify(newIds));
+    },
+
+    /**
      * Convert ActivityEntry thành Notification
      */
-    activityToNotification: (activity: ActivityEntry): Notification => {
+    activityToNotification: (activity: ActivityEntry, readIds: string[] = []): Notification => {
         let type: Notification['type'] = 'system';
         let icon = 'info';
         let title = '';
@@ -52,7 +73,7 @@ export const notificationService = {
             title,
             message,
             timestamp: activity.timestamp,
-            read: false,
+            read: readIds.includes(activity.id),
             icon,
             activityId: activity.id
         };
@@ -68,9 +89,10 @@ export const notificationService = {
             title: 'Thanh toán mới',
             message: `User ${tx.userEmail || tx.userId} vừa báo đã chuyển khoản gói ${tx.planName || tx.planId}. Số tiền: ${tx.amount.toLocaleString()}₫`,
             timestamp: tx.createdAt,
-            read: tx.status !== 'pending', // Assume read if not pending
+            // With transactions, if status is NOT pending, it is effectively "read/handled"
+            read: tx.status !== 'pending', 
             icon: 'payments',
-            activityId: tx.id // Using tx.id as identifier
+            activityId: tx.id
         };
     },
 
@@ -93,7 +115,8 @@ export const notificationService = {
             });
 
             // Convert activities thành notifications
-            return activities.map(activity => notificationService.activityToNotification(activity));
+            const readIds = notificationService.getReadIds();
+            return activities.map(activity => notificationService.activityToNotification(activity, readIds));
         } catch (e) {
             console.error('Failed to get notifications', e);
             return [];
@@ -111,7 +134,15 @@ export const notificationService = {
         let transactions: Notification[] = [];
 
         const updateAll = () => {
-            const combined = [...activities, ...transactions]
+            const readIds = notificationService.getReadIds();
+            
+            // Re-map activities with fresh read status
+            const updatedActivities = activities.map(n => ({
+                ...n,
+                read: readIds.includes(n.id)
+            }));
+
+            const combined = [...updatedActivities, ...transactions]
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .slice(0, limitCount);
             callback(combined);
@@ -129,8 +160,11 @@ export const notificationService = {
         );
 
         const unsubActivity = onSnapshot(qActivity, (snapshot) => {
+            const readIds = notificationService.getReadIds();
+            // Store as Notifications but re-evaluate read status on updateAll
+            // Actually, best to store raw data or just map initial read status here
             activities = snapshot.docs.map(doc => 
-                notificationService.activityToNotification({ id: doc.id, ...doc.data() } as ActivityEntry)
+                notificationService.activityToNotification({ id: doc.id, ...doc.data() } as ActivityEntry, readIds)
             );
             updateAll();
         }, (error) => {
@@ -143,9 +177,7 @@ export const notificationService = {
             );
             updateAll();
         }, (error) => {
-            console.error("Transaction Notification Error (Likely missing index):", error);
-            // Fallback: try without orderBy if it fails? 
-            // Actually qTx above doesn't have orderBy, so it shouldn't fail.
+            console.error("Transaction Notification Error:", error);
         });
 
         return () => {

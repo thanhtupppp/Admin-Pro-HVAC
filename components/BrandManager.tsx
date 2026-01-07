@@ -12,7 +12,33 @@ const BrandManager: React.FC = () => {
   const [showAddBrandModal, setShowAddBrandModal] = useState(false);
   const [showAddModelModal, setShowAddModelModal] = useState(false);
 
+  const convertGoogleDriveLink = (url: string) => {
+    try {
+      if (!url.includes('drive.google.com')) return url;
+      // Extract ID
+      let id = '';
+      const parts = url.split('/');
+      // Case 1: .../d/ID/view
+      const dIndex = parts.indexOf('d');
+      if (dIndex !== -1 && parts.length > dIndex + 1) {
+        id = parts[dIndex + 1];
+      }
+      // Case 2: id=ID
+      if (!id && url.includes('id=')) {
+        id = url.split('id=')[1].split('&')[0];
+      }
+
+      if (id) {
+        return `https://lh3.googleusercontent.com/d/${id}`;
+      }
+      return url;
+    } catch (e) {
+      return url;
+    }
+  };
+
   // New Brand Form State
+  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [newBrandName, setNewBrandName] = useState('');
   const [newBrandShortName, setNewBrandShortName] = useState('');
   const [newBrandColor, setNewBrandColor] = useState('#136dec');
@@ -61,19 +87,40 @@ const BrandManager: React.FC = () => {
 
   const handleCreateBrand = async () => {
     if (!newBrandName) return;
-    try {
-      const newBrand = await brandService.createBrand({
-        name: newBrandName,
-        logo: newBrandShortName || newBrandName.substring(0, 1).toUpperCase(),
-        color: newBrandColor  // Casting is handled in service/type logic if needed
-      } as any);
 
-      setBrands([newBrand, ...brands]);
+    const brandData = {
+        name: newBrandName,
+        logo: newBrandShortName.startsWith('http') 
+              ? (convertGoogleDriveLink(newBrandShortName) || newBrandShortName)
+              : (newBrandShortName || newBrandName.substring(0, 1).toUpperCase()),
+        color: newBrandColor
+    };
+
+    try {
+      if (editingBrand) {
+        // UPDATE Existing Brand
+        await brandService.updateBrand(editingBrand.id, brandData);
+        setBrands(brands.map(b => b.id === editingBrand.id ? { ...b, ...brandData } : b));
+      } else {
+        // CREATE New Brand
+        const newBrand = await brandService.createBrand(brandData as any);
+        setBrands([newBrand, ...brands]);
+      }
+      
       setShowAddBrandModal(false);
       resetBrandForm();
     } catch (e) {
-      alert("Failed to create brand");
+      alert(editingBrand ? "Failed to update brand" : "Failed to create brand");
     }
+  };
+
+  const handleEditBrand = (brand: Brand, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingBrand(brand);
+    setNewBrandName(brand.name);
+    setNewBrandShortName(brand.logo); 
+    setNewBrandColor((brand as any).color || '#136dec');
+    setShowAddBrandModal(true);
   };
 
   const handleCreateModel = async () => {
@@ -126,6 +173,7 @@ const BrandManager: React.FC = () => {
   };
 
   const resetBrandForm = () => {
+    setEditingBrand(null);
     setNewBrandName('');
     setNewBrandShortName('');
     setNewBrandColor('#136dec');
@@ -151,7 +199,10 @@ const BrandManager: React.FC = () => {
         {!selectedBrandId && (
           <div className="flex gap-2">
             <button
-              onClick={() => setShowAddBrandModal(true)}
+              onClick={() => {
+                setEditingBrand(null); 
+                setShowAddBrandModal(true);
+              }}
               className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95"
             >
               <span className="material-symbols-outlined text-[20px]">add_business</span>
@@ -186,10 +237,21 @@ const BrandManager: React.FC = () => {
                     className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-inner border border-white/5"
                     style={{ backgroundColor: (brand as any).color || '#3b82f6' }}
                   >
-                    {brand.logo}
+                    {brand.logo.startsWith('http') ? (
+                       <img 
+                          src={convertGoogleDriveLink(brand.logo) || brand.logo} 
+                          alt={brand.name} 
+                          className="w-full h-full object-contain p-2"
+                       />
+                    ) : (
+                       brand.logo
+                    )}
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => handleDeleteBrand(brand.id, e)} className="p-2 text-text-secondary hover:text-red-500 transition-colors">
+                  <div className="flex gap-2">
+                    <button onClick={(e) => handleEditBrand(brand, e)} className="p-2 text-text-secondary hover:text-primary transition-colors bg-black/20 rounded-lg hover:bg-black/40">
+                      <span className="material-symbols-outlined text-lg">edit</span>
+                    </button>
+                    <button onClick={(e) => handleDeleteBrand(brand.id, e)} className="p-2 text-text-secondary hover:text-red-500 transition-colors bg-black/20 rounded-lg hover:bg-black/40">
                       <span className="material-symbols-outlined text-lg">delete</span>
                     </button>
                   </div>
@@ -230,7 +292,15 @@ const BrandManager: React.FC = () => {
               className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
               style={{ backgroundColor: (selectedBrand as any)?.color || '#3b82f6' }}
             >
-              {selectedBrand?.logo}
+               {selectedBrand?.logo.startsWith('http') ? (
+                   <img 
+                      src={convertGoogleDriveLink(selectedBrand.logo) || selectedBrand.logo} 
+                      alt={selectedBrand.name} 
+                      className="w-full h-full object-contain p-1"
+                   />
+               ) : (
+                  selectedBrand?.logo
+               )}
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">{selectedBrand?.name}</h2>
@@ -305,7 +375,7 @@ const BrandManager: React.FC = () => {
           <div className="absolute inset-0 bg-background-dark/80 backdrop-blur-sm" onClick={() => setShowAddBrandModal(false)}></div>
           <div className="relative bg-surface-dark border border-border-dark rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border-dark/30 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white">Thêm Thương Hiệu</h3>
+              <h3 className="text-lg font-bold text-white">{editingBrand ? 'Cập nhật Thương hiệu' : 'Thêm Thương Hiệu'}</h3>
               <button onClick={() => setShowAddBrandModal(false)} className="text-text-secondary hover:text-white">
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -323,12 +393,11 @@ const BrandManager: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-text-secondary uppercase">Mã viết tắt</label>
+                  <label className="text-[10px] font-bold text-text-secondary uppercase">Logo (URL hoặc Mã)</label>
                   <input
                     type="text"
                     className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
-                    placeholder="DK"
-                    maxLength={2}
+                    placeholder="Link ảnh hoặc DK"
                     value={newBrandShortName}
                     onChange={(e) => setNewBrandShortName(e.target.value)}
                   />
@@ -343,13 +412,36 @@ const BrandManager: React.FC = () => {
                   />
                 </div>
               </div>
+              
+              {/* Logo Preview */}
+              {newBrandShortName && (
+                 <div className="flex flex-col items-center gap-2 p-4 bg-background-dark rounded-xl border border-border-dark border-dashed">
+                    <span className="text-[10px] text-text-secondary uppercase font-bold">Preview Logo</span>
+                    {newBrandShortName.startsWith('http') ? (
+                       <img 
+                         src={convertGoogleDriveLink(newBrandShortName) || newBrandShortName} 
+                         alt="Logo Preview" 
+                         className="h-16 w-16 object-contain rounded-lg bg-white/5"
+                         onError={(e) => (e.currentTarget.style.display = 'none')} 
+                       />
+                    ) : (
+                       <div 
+                         className="w-16 h-16 rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-inner border border-white/5"
+                         style={{ backgroundColor: newBrandColor }}
+                       >
+                         {newBrandShortName}
+                       </div>
+                    )}
+                 </div>
+              )}
+
             </div>
             <div className="p-6 border-t border-border-dark/30">
               <button
                 onClick={handleCreateBrand}
                 className="w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all"
               >
-                Tạo thương hiệu
+                {editingBrand ? 'Lưu thay đổi' : 'Tạo thương hiệu'}
               </button>
             </div>
           </div>

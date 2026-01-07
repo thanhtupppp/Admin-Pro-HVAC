@@ -93,6 +93,16 @@ export interface AdminUser {
   planId?: string;
   planName?: string;
   planExpiresAt?: string; // ISO Date String
+  createdAt?: string; // ISO Date String
+  activeSessions?: UserSession[]; // Track active devices
+}
+
+export interface UserSession {
+  deviceId: string;
+  userAgent: string;
+  ip?: string;
+  lastActive: string; // ISO Date String
+  deviceType?: string; // e.g., 'Mobile', 'Desktop'
 }
 
 export interface SubscriptionPlan {

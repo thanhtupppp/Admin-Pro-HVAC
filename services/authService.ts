@@ -52,9 +52,23 @@ export const authService = {
                 minute: '2-digit',
                 second: '2-digit'
             });
-            await userService.updateUser(userInDb.id, {
-                lastLogin: formattedTime
-            });
+
+            // Device Fingerprinting Strategy (Simple)
+            let deviceId = localStorage.getItem('admin_device_id');
+            if (!deviceId) {
+                deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('admin_device_id', deviceId);
+            }
+
+            // Parallel updates for better performance
+            await Promise.all([
+                userService.updateUser(userInDb.id, { lastLogin: formattedTime }),
+                userService.logSession(userInDb.id, {
+                    deviceId: deviceId,
+                    userAgent: navigator.userAgent
+                    // ip: 'fetched-by-server-or-cloud-function' - Client side limitation
+                })
+            ]);
 
             return {
                 success: true,

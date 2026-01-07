@@ -46,6 +46,11 @@ export const brandService = {
         await deleteDoc(doc(db, 'brands', id));
     },
 
+    updateBrand: async (id: string, updates: Partial<Brand>): Promise<void> => {
+        const brandRef = doc(db, 'brands', id);
+        await updateDoc(brandRef, updates);
+    },
+
     createModel: async (modelData: Omit<Model, 'id'>): Promise<Model> => {
         const docRef = await addDoc(collection(db, 'models'), modelData);
 
