@@ -128,6 +128,26 @@ const DocumentManager: React.FC = () => {
     setShowPreviewModal(true);
   };
 
+  // Helper function to convert Google Drive link to embeddable preview URL
+  const getGoogleDrivePreviewUrl = (url: string): string | null => {
+    if (!url) return null;
+    
+    // Check if it's a Google Drive link
+    const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveMatch) {
+      const fileId = driveMatch[1];
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    }
+    
+    // Check if it's already a preview link
+    if (url.includes('drive.google.com') && url.includes('/preview')) {
+      return url;
+    }
+    
+    // Not a Google Drive link, return as is
+    return url;
+  };
+
   const handleEdit = (doc: Document) => {
     setEditDocument(doc);
     setShowEditModal(true);
@@ -374,42 +394,115 @@ const DocumentManager: React.FC = () => {
 
       {/* Preview Modal */}
       {showPreviewModal && previewDocument && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-dark border border-border-dark rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">{previewDocument.title}</h3>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-dark border border-border-dark rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border-dark">
+              <div>
+                <h3 className="text-xl font-bold text-white">{previewDocument.title}</h3>
+                <p className="text-sm text-text-secondary mt-1">
+                  {previewDocument.brand} {previewDocument.model_series && `• ${previewDocument.model_series}`} • {previewDocument.type}
+                </p>
+              </div>
               <button
                 onClick={() => setShowPreviewModal(false)}
-                className="text-text-secondary hover:text-white transition-colors"
+                className="text-text-secondary hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="bg-background-dark rounded-lg p-4 mb-4">
+            {/* Preview Content */}
+            <div className="flex-1 overflow-auto p-6">
               {previewDocument.previewUrl ? (
-                <img
-                  src={previewDocument.previewUrl}
-                  alt={previewDocument.title}
-                  className="max-w-full h-auto"
-                />
+                <>
+                  {/* Google Drive Preview */}
+                  {previewDocument.previewUrl.includes('drive.google.com') ? (
+                    <div className="w-full h-[600px] bg-background-dark rounded-lg overflow-hidden">
+                      <iframe
+                        src={getGoogleDrivePreviewUrl(previewDocument.previewUrl) || previewDocument.previewUrl}
+                        className="w-full h-full border-0"
+                        title={previewDocument.title}
+                        allow="autoplay"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      {/* Local PDF Preview */}
+                      {previewDocument.previewUrl.startsWith('data:application/pdf') ? (
+                        <div className="w-full h-[600px] bg-background-dark rounded-lg overflow-hidden">
+                          <iframe
+                            src={previewDocument.previewUrl}
+                            className="w-full h-full border-0"
+                            title={previewDocument.title}
+                          />
+                        </div>
+                      ) : (
+                        /* Image Preview */
+                        <div className="flex items-center justify-center bg-background-dark rounded-lg p-4">
+                          <img
+                            src={previewDocument.previewUrl}
+                            alt={previewDocument.title}
+                            className="max-w-full max-h-[600px] h-auto object-contain"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
               ) : (
-                <p className="text-text-secondary text-center py-12">Không có preview</p>
+                <div className="flex flex-col items-center justify-center py-24 text-text-secondary">
+                  <span className="material-symbols-outlined text-6xl mb-4">description</span>
+                  <p className="text-lg">Không có preview cho tài liệu này</p>
+                  <p className="text-sm mt-2">Vui lòng tải xuống để xem nội dung đầy đủ</p>
+                </div>
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-text-secondary">Hãng</p>
-                <p className="text-white font-medium">{previewDocument.brand}</p>
+            {/* Footer with metadata and actions */}
+            <div className="p-6 border-t border-border-dark">
+              <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
+                <div>
+                  <p className="text-text-secondary">Hãng</p>
+                  <p className="text-white font-medium">{previewDocument.brand}</p>
+                </div>
+                <div>
+                  <p className="text-text-secondary">Model</p>
+                  <p className="text-white font-medium">{previewDocument.model_series || 'All'}</p>
+                </div>
+                <div>
+                  <p className="text-text-secondary">Loại</p>
+                  <p className="text-white font-medium capitalize">{previewDocument.type}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-text-secondary">Model</p>
-                <p className="text-white font-medium">{previewDocument.model_series || 'All'}</p>
-              </div>
-              <div>
-                <p className="text-text-secondary">Loại</p>
-                <p className="text-white font-medium capitalize">{previewDocument.type}</p>
+              
+              <div className="flex gap-3">
+                {previewDocument.previewUrl && (
+                  <>
+                    {/* Open in new tab for Google Drive */}
+                    {previewDocument.previewUrl.includes('drive.google.com') ? (
+                      <a
+                        href={previewDocument.previewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 px-4 py-2 bg-brand-primary hover:bg-brand-primary/80 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">open_in_new</span>
+                        Mở trong Google Drive
+                      </a>
+                    ) : (
+                      /* Download button for local files */
+                      <a
+                        href={previewDocument.previewUrl}
+                        download={`${previewDocument.title}.${previewDocument.previewUrl.includes('pdf') ? 'pdf' : 'jpg'}`}
+                        className="flex-1 px-4 py-2 bg-brand-primary hover:bg-brand-primary/80 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">download</span>
+                        Tải xuống
+                      </a>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>

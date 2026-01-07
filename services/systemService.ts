@@ -120,16 +120,53 @@ export const systemService = {
         action: string;
         target: string;
         details: string;
+        severity?: 'info' | 'warning' | 'danger';
         ipAddress?: string;
     }): Promise<void> => {
         try {
             await addDoc(collection(db, 'activity_logs'), {
                 ...entry,
                 timestamp: Timestamp.now(),
+                severity: entry.severity || 'info',
                 ipAddress: entry.ipAddress || 'Unknown'
             });
         } catch (e) {
             console.error('Failed to add audit log', e);
+        }
+    },
+
+    logActivity: async (
+        action: string,
+        target: string,
+        details: string,
+        severity: 'info' | 'warning' | 'danger' = 'info'
+    ): Promise<void> => {
+        try {
+            const { auth } = await import('./firebaseConfig');
+            const currentUser = auth.currentUser;
+            
+            if (currentUser) {
+                await systemService.addAuditLog({
+                    userId: currentUser.uid,
+                    userName: currentUser.email || 'Unknown',
+                    action,
+                    target,
+                    details,
+                    severity
+                });
+            } else {
+                 // Log system actions or anonymous actions if needed
+                 await systemService.addAuditLog({
+                    userId: 'system',
+                    userName: 'System',
+                    action,
+                    target,
+                    details,
+                    severity
+                });
+            }
+        } catch (error) {
+            console.error('Error logging activity:', error);
         }
     },
 

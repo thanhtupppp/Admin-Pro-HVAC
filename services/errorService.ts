@@ -1,5 +1,6 @@
 import { ErrorCode } from '../types';
 import { systemService } from './systemService';
+import { brandService } from './brandService';
 import { db } from './firebaseConfig';
 import {
     collection,
@@ -10,6 +11,62 @@ import {
     getDoc,
     updateDoc
 } from 'firebase/firestore';
+
+/**
+ * Ensure brand exists in brands collection
+ * Auto-creates if not found
+ */
+const ensureBrandExists = async (brandName: string): Promise<string | null> => {
+    if (!brandName || brandName.trim() === '') return null;
+
+    try {
+        const brands = await brandService.getBrands();
+        let brand = brands.find(b => b.name.toLowerCase() === brandName.toLowerCase());
+
+        if (!brand) {
+            brand = await brandService.createBrand({
+                name: brandName,
+                logo: '' // Default empty logo
+            });
+            console.log(`Auto-created brand: ${brandName}`);
+        }
+
+        return brand.id;
+    } catch (error) {
+        console.error('Failed to ensure brand exists:', error);
+        return null;
+    }
+};
+
+/**
+ * Ensure model exists in models collection
+ * Auto-creates if not found
+ */
+const ensureModelExists = async (brandName: string, modelName: string): Promise<void> => {
+    if (!modelName || modelName.trim() === '' || !brandName || brandName.trim() === '') return;
+
+    try {
+        // First ensure brand exists and get its ID
+        const brandId = await ensureBrandExists(brandName);
+        if (!brandId) return;
+
+        // Check if model exists
+        const models = await brandService.getModelsByBrand(brandId);
+        const modelExists = models.some(m => m.name.toLowerCase() === modelName.toLowerCase());
+
+        if (!modelExists) {
+            await brandService.createModel({
+                brandId,
+                name: modelName,
+                type: 'HVAC', // Default type
+                notes: ''
+            });
+            console.log(`Auto-created model: ${modelName} for brand: ${brandName}`);
+        }
+    } catch (error) {
+        console.error('Failed to ensure model exists:', error);
+    }
+};
 
 export const errorService = {
     getErrors: async (): Promise<ErrorCode[]> => {
@@ -41,6 +98,10 @@ export const errorService = {
     },
 
     createError: async (errorData: Omit<ErrorCode, 'id' | 'updatedAt'>): Promise<ErrorCode> => {
+        // Auto-create brand and model if not exists
+        await ensureBrandExists(errorData.brand);
+        await ensureModelExists(errorData.brand, errorData.model);
+
         const newError = {
             ...errorData,
             updatedAt: new Date().toISOString().split('T')[0]
@@ -58,6 +119,14 @@ export const errorService = {
     },
 
     updateError: async (id: string, updates: Partial<ErrorCode>): Promise<ErrorCode> => {
+        // Auto-create brand and model if not exists
+        if (updates.brand) {
+            await ensureBrandExists(updates.brand);
+            if (updates.model) {
+                await ensureModelExists(updates.brand, updates.model);
+            }
+        }
+
         const docRef = doc(db, 'error_codes', id);
         const dataToUpdate = {
             ...updates,

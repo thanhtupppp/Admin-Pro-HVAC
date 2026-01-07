@@ -8,6 +8,12 @@ const BrandManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModel, setShowAddModel] = useState(false);
+  const [newModel, setNewModel] = useState({
+    name: '',
+    type: '',
+    notes: ''
+  });
 
   useEffect(() => {
     loadData();
@@ -55,6 +61,31 @@ const BrandManager: React.FC = () => {
     if (confirm('Bạn có chắc muốn xóa model này?')) {
       await brandService.deleteModel(id);
       setModels(models.filter(m => m.id !== id));
+    }
+  };
+
+  const handleAddModel = async () => {
+    if (!selectedBrandId || !newModel.name.trim()) {
+      alert('Vui lòng nhập tên model!');
+      return;
+    }
+
+    try {
+      await brandService.createModel({
+        brandId: selectedBrandId,
+        name: newModel.name,
+        type: newModel.type || 'HVAC',
+        notes: newModel.notes
+      });
+      // Reload models
+      const updatedModels = await brandService.getModelsByBrand(selectedBrandId);
+      setModels(updatedModels);
+      // Reset form
+      setNewModel({ name: '', type: '', notes: '' });
+      setShowAddModel(false);
+    } catch (error) {
+      console.error('Failed to add model:', error);
+      alert('Lỗi khi thêm model!');
     }
   };
 
@@ -116,16 +147,81 @@ const BrandManager: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Back Button */}
-          <div className="flex items-center gap-4">
+          {/* Back Button and Add Model Button */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSelectedBrandId(null)}
+                className="text-text-secondary hover:text-brand-primary transition-colors"
+              >
+                <span className="material-symbols-outlined">arrow_back</span>
+              </button>
+              <h2 className="text-xl font-semibold text-text-primary">{selectedBrand?.name}</h2>
+            </div>
             <button
-              onClick={() => setSelectedBrandId(null)}
-              className="text-text-secondary hover:text-brand-primary transition-colors"
+              onClick={() => setShowAddModel(true)}
+              className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/80 text-white font-bold rounded-lg transition-all flex items-center gap-2"
             >
-              <span className="material-symbols-outlined">arrow_back</span>
+              <span className="material-symbols-outlined text-[20px]">add</span>
+              Thêm Model
             </button>
-            <h2 className="text-xl font-semibold text-text-primary">{selectedBrand?.name}</h2>
           </div>
+
+          {/* Add Model Form */}
+          {showAddModel && (
+            <div className="bg-surface-dark border border-border-dark rounded-xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4">Thêm Model Mới</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Tên Model</label>
+                  <input
+                    type="text"
+                    value={newModel.name}
+                    onChange={(e) => setNewModel({ ...newModel, name: e.target.value })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white"
+                    placeholder="VD: CU-XPU9XKH-8"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Loại thiết bị</label>
+                  <input
+                    type="text"
+                    value={newModel.type}
+                    onChange={(e) => setNewModel({ ...newModel, type: e.target.value })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white"
+                    placeholder="VD: Điều hòa"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Ghi chú</label>
+                  <input
+                    type="text"
+                    value={newModel.notes}
+                    onChange={(e) => setNewModel({ ...newModel, notes: e.target.value })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white"
+                    placeholder="Ghi chú (tùy chọn)"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => {
+                    setShowAddModel(false);
+                    setNewModel({ name: '', type: '', notes: '' });
+                  }}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-lg transition-all"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleAddModel}
+                  className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/80 text-white font-bold rounded-lg transition-all"
+                >
+                  Lưu Model
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Models Table */}
           <div className="industrial-card">

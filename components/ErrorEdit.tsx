@@ -58,7 +58,8 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
   // Load error data
   useEffect(() => {
     const loadError = async () => {
-      if (!errorId) {
+      // Treat "new" as create mode
+      if (!errorId || errorId === 'new') {
         setIsLoading(false);
         return;
       }
@@ -76,6 +77,7 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
             steps: errorData.steps?.length > 0 ? errorData.steps : ['', '', ''],
             components: errorData.components || [],
             tools: errorData.tools || [],
+            images: [],
             videos: errorData.videos || [],
             status: errorData.status || 'active',
             severity: errorData.severity || 'medium',
@@ -109,7 +111,8 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
 
   // Autosave effect
   useEffect(() => {
-    if (!errorId || isLoading) return;
+    // Disable autosave for new entries to avoid creating incomplete docs
+    if (!errorId || errorId === 'new' || isLoading) return;
 
     const autoSave = async () => {
       try {
@@ -133,13 +136,12 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
   }, [debouncedFormData, errorId, isLoading]);
 
   const handleSave = async () => {
-    if (!errorId) return;
     setIsSaving(true);
     try {
       // Filter out empty steps
       const cleanSteps = formData.steps.filter(s => s.trim() !== '');
 
-      await errorService.updateError(errorId, {
+      const errorData = {
         code: formData.code,
         brand: formData.brand,
         model: formData.model,
@@ -149,11 +151,18 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
         steps: cleanSteps,
         components: formData.components,
         tools: formData.tools,
+        images: [], // Default to empty as UI doesn't support image upload yet
         videos: formData.videos,
-        status: formData.status,
-        severity: formData.severity,
+        status: formData.status as 'active' | 'pending' | 'draft',
+        severity: formData.severity as 'high' | 'medium' | 'low',
         isCommon: formData.isCommon,
-      });
+      };
+
+      if (errorId && errorId !== 'new') {
+        await errorService.updateError(errorId, errorData);
+      } else {
+        await errorService.createError(errorData);
+      }
 
       if (onSave) onSave();
     } catch (err) {
@@ -217,7 +226,7 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
     );
   }
 
-  if (!error && errorId) {
+  if (!error && errorId && errorId !== 'new') {
     return (
       <div className="p-8 text-center">
         <div className="text-red-400">Không tìm thấy mã lỗi</div>

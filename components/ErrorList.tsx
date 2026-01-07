@@ -130,7 +130,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
                 <td className="font-mono text-brand-primary font-medium">{error.code}</td>
                 <td className="text-text-primary">{error.title}</td>
                 <td className="text-text-secondary">{error.brand}</td>
-                <td className="text-text-secondary text-sm">{error.modelName || '—'}</td>
+                <td className="text-text-secondary text-sm">{error.model || '—'}</td>
                 <td className="font-mono text-text-muted text-sm">{error.views || 0}</td>
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
@@ -198,7 +198,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
                   </span>
                 </div>
                 <h2 className="text-xl font-bold text-white">{previewError.title}</h2>
-                <p className="text-sm text-text-secondary mt-1">{previewError.brand} {previewError.modelName && `• ${previewError.modelName}`}</p>
+                <p className="text-sm text-text-secondary mt-1">{previewError.brand} {previewError.model && `• ${previewError.model}`}</p>
               </div>
               <button
                 onClick={() => setPreviewError(null)}
