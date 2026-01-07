@@ -1,74 +1,148 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { dashboardService, DashboardStats } from '../services/dashboardService';
 import { errorService } from '../services/errorService';
-import { brandService } from '../services/brandService';
-import { userService } from '../services/userService';
-import { paymentService } from '../services/paymentService';
 import { ErrorCode } from '../types';
+import StatCard from './StatCard';
 import DashboardCharts from './DashboardCharts';
+import { format } from 'date-fns';
 
 const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState({
-    errors: 0,
-    brands: 0,
-    users: 0,
-    pending: 0,
-    pendingTransactions: 0
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    totalRevenue: 0,
+    pendingApprovals: 0,
+    activeErrors: 0,
+    trends: { users: 12.5, revenue: 8.3, approvals: -5.2, errors: 15.7 }
   });
   const [recentErrors, setRecentErrors] = useState<ErrorCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
+  // Real-time stats subscription
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [errors, brands, users, transactions] = await Promise.all([
-          errorService.getErrors(),
-          brandService.getBrands(),
-          userService.getUsers(),
-          paymentService.getTransactions()
-        ]);
+    const unsubscribe = dashboardService.getStatsRealtime((updatedStats) => {
+      setStats(updatedStats);
+      setIsLoading(false);
+    });
 
-        setStats({
-          errors: errors.length,
-          brands: brands.length,
-          users: users.length,
-          pending: errors.filter(e => e.status === 'pending').length,
-          pendingTransactions: transactions.filter(t => t.status === 'pending').length
-        });
-
-        // Take last 5 errors (or top 5 depending on sorting, assuming current order is relevant)
-        setRecentErrors(errors.slice(0, 5));
-      } catch (e) {
-        console.error("Dashboard fetch error", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
+    return () => unsubscribe();
   }, []);
 
+  // Load recent errors
+  useEffect(() => {
+    const fetchRecentErrors = async () => {
+      try {
+        const errors = await errorService.getErrors();
+        setRecentErrors(errors.slice(0, 5));
+      } catch (e) {
+        console.error("Failed to load recent errors", e);
+      }
+    };
+    fetchRecentErrors();
+  }, []);
+
+  const handleExportPDF = async () => {
+    if (!dashboardRef.current) return;
+
+    setIsExporting(true);
+    try {
+      const filename = `dashboard-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      await dashboardService.exportToPDF(dashboardRef.current, filename);
+      alert('✅ Đã xuất báo cáo thành công!');
+    } catch (error) {
+      alert('❌ Xuất báo cáo thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Define stat cards with dynamic visibility
+  const statCards = [
+    {
+      title: 'Người dùng',
+      value: stats.totalUsers,
+      trend: stats.trends.users,
+      icon: 'group',
+      iconColor: 'text-green-500',
+      subtitle: 'tổng người dùng',
+      isVisible: stats.totalUsers > 0
+    },
+    {
+      title: 'Doanh thu',
+      value: `${(stats.totalRevenue / 1000).toFixed(0)}K`,
+      trend: stats.trends.revenue,
+      icon: 'payments',
+      iconColor: 'text-blue-500',
+      subtitle: 'VNĐ tháng này',
+      isVisible: stats.totalRevenue > 0
+    },
+    {
+      title: 'Chờ duyệt',
+      value: stats.pendingApprovals,
+      trend: stats.trends.approvals,
+      icon: 'pending_actions',
+      iconColor: 'text-yellow-500',
+      subtitle: 'thanh toán đang chờ',
+      isVisible: stats.pendingApprovals > 0
+    },
+    {
+      title: 'Mã lỗi',
+      value: stats.activeErrors,
+      trend: stats.trends.errors,
+      icon: 'error',
+      iconColor: 'text-red-500',
+      subtitle: 'đang hoạt động',
+      isVisible: true // Always show
+    }
+  ];
+
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-500">
+    <div ref={dashboardRef} className="p-6 space-y-6 animate-in fade-in duration-500">
+      {/* Header with Export Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-text-secondary text-sm flex items-center gap-2 mt-1">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            Cập nhật realtime
+          </p>
+        </div>
+        <button
+          onClick={handleExportPDF}
+          disabled={isExporting}
+          className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white font-bold rounded-xl border border-border-dark transition-all flex items-center gap-2"
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {isExporting ? 'progress_activity' : 'download'}
+          </span>
+          {isExporting ? 'Đang xuất...' : 'Xuất báo cáo'}
+        </button>
+      </div>
+
+      {/* Dynamic Bento Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Tổng mã lỗi', value: isLoading ? '...' : stats.errors, change: '+12%', color: 'blue', icon: 'error' },
-          { label: 'Chờ duyệt', value: isLoading ? '...' : stats.pending, change: 'Cao', color: 'orange', icon: 'pending_actions' },
-          { label: 'Hãng sản xuất', value: isLoading ? '...' : stats.brands, change: '+2 mới', color: 'purple', icon: 'business' },
-          { label: 'Thanh toán mới', value: isLoading ? '...' : stats.pendingTransactions, change: stats.pendingTransactions > 0 ? 'Cần xử lý' : 'Ổn định', color: 'yellow', icon: 'payments' },
-          { label: 'Quản trị viên', value: isLoading ? '...' : stats.users, change: 'Online', color: 'green', icon: 'group' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-surface-dark border border-border-dark/50 rounded-2xl p-5 hover:border-primary/50 transition-colors cursor-default group">
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-2 bg-${stat.color}-500/10 rounded-lg text-${stat.color}-500 group-hover:bg-${stat.color}-500 group-hover:text-white transition-colors`}>
-                <span className="material-symbols-outlined">{stat.icon}</span>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stat.color === 'orange' ? 'bg-orange-500/10 text-orange-500' : 'bg-green-500/10 text-green-500'}`}>
-                {stat.change}
-              </span>
+        {isLoading ? (
+          // Skeleton loading
+          Array(4).fill(0).map((_, i) => (
+            <div key={i} className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6 animate-pulse">
+              <div className="h-16"></div>
             </div>
-            <h3 className="text-text-secondary text-xs font-medium uppercase tracking-wider">{stat.label}</h3>
-            <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
-          </div>
-        ))}
+          ))
+        ) : (
+          statCards.map((card, index) => (
+            <StatCard
+              key={index}
+              title={card.title}
+              value={card.value}
+              trend={card.trend}
+              icon={card.icon}
+              iconColor={card.iconColor}
+              subtitle={card.subtitle}
+              isVisible={card.isVisible}
+            />
+          ))
+        )}
       </div>
 
       {/* Analytics Charts */}
@@ -103,18 +177,22 @@ const Dashboard: React.FC = () => {
           <div className="space-y-4">
             {isLoading ? (
               <div className="text-center text-text-secondary py-10">Đang tải dữ liệu...</div>
-            ) : recentErrors.map((err, i) => (
-              <div key={i} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-border-dark/30 group">
-                <div className={`w-10 h-10 rounded-lg bg-blue-900/20 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-500/20`}>
-                  {err.code}
+            ) : recentErrors.length === 0 ? (
+              <div className="text-center text-text-secondary py-10">Chưa có mã lỗi nào</div>
+            ) : (
+              recentErrors.map((err, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-border-dark/30 group">
+                  <div className={`w-10 h-10 rounded-lg bg-blue-900/20 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-500/20`}>
+                    {err.code}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{err.title}</p>
+                    <p className="text-[10px] text-text-secondary font-medium">{err.brand} • Recent</p>
+                  </div>
+                  <span className="material-symbols-outlined text-text-secondary text-sm opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{err.title}</p>
-                  <p className="text-[10px] text-text-secondary font-medium">{err.brand} • Recent</p>
-                </div>
-                <span className="material-symbols-outlined text-text-secondary text-sm opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

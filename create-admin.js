@@ -2,7 +2,8 @@
 // Chạy lệnh: node create-admin.js
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc } from 'firebase/firestore';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // Firebase config
 const firebaseConfig = {
@@ -15,36 +16,62 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getFirestore(app);
 
 async function createAdmin() {
     try {
         console.log('🔧 Đang tạo tài khoản admin mới...');
 
+        const email = 'thanhtupy@gmail.com';
+        const password = 'Admin@123456';
+
+        // Step 1: Create Firebase Auth user
+        console.log('1️⃣ Creating Firebase Auth user...');
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        console.log(`✅ Auth user created with UID: ${user.uid}`);
+
+        // Step 2: Create Firestore document with SAME UID
+        console.log('2️⃣ Creating Firestore user document...');
         const adminData = {
-            username: 'admin',
-            email: 'thanhtupy@gmail.com',
-            role: 'Super Admin',
+            email: email,
+            name: 'Super Admin',
+            role: 'Super Admin', // ⚠️ CRITICAL: Must match firestore.rules
             status: 'active',
             plan: 'Internal',
-            avatar: 'AD',
-            lastLogin: 'Chưa đăng nhập'
+            planExpiresAt: null,
+            avatar: 'SA',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            lastLogin: null
         };
 
-        const docRef = await addDoc(collection(db, 'users'), adminData);
+        // ⚠️ IMPORTANT: Use setDoc with user.uid as document ID
+        await setDoc(doc(db, 'users', user.uid), adminData);
 
         console.log('✅ Tạo tài khoản admin thành công!');
         console.log('📋 Thông tin tài khoản:');
-        console.log(`   ID: ${docRef.id}`);
-        console.log(`   Username: ${adminData.username}`);
-        console.log(`   Email: ${adminData.email}`);
+        console.log(`   UID: ${user.uid}`);
+        console.log(`   Email: ${email}`);
+        console.log(`   Password: ${password}`);
         console.log(`   Role: ${adminData.role}`);
         console.log(`   Plan: ${adminData.plan}`);
         console.log(`   Status: ${adminData.status}`);
+        console.log('');
+        console.log('⚠️ LƯU Ý: Đăng nhập với email và password ở trên!');
 
         process.exit(0);
     } catch (error) {
         console.error('❌ Lỗi khi tạo tài khoản admin:', error);
+        console.log('');
+        if (error.code === 'auth/email-already-in-use') {
+            console.log('💡 Email đã tồn tại. Bạn có thể:');
+            console.log('   1. Đăng nhập với email này');
+            console.log('   2. Hoặc vào Firebase Console → Firestore');
+            console.log('   3. Tìm user document và add field: role = "Super Admin"');
+        }
         process.exit(1);
     }
 }

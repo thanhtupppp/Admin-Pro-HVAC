@@ -3,6 +3,7 @@ import { systemService, SystemSettings } from '../services/systemService';
 import VietQRSettings from './VietQRSettings';
 import BackupManager from './BackupManager';
 import EmailSettings from './EmailSettings';
+import { maskApiKey } from '../utils/validation';
 
 interface SettingsProps {
   onSave?: () => void;
@@ -12,6 +13,8 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   const [activeSection, setActiveSection] = useState('general');
   const [hasKey, setHasKey] = useState<boolean>(false);
   const [manualKey, setManualKey] = useState<string>('');
+  const [showApiKey, setShowApiKey] = useState<boolean>(false);
+  const [isTestingApi, setIsTestingApi] = useState<boolean>(false);
   const [settings, setSettings] = useState<SystemSettings>({
     appName: 'Admin Pro Console',
     maintenanceMode: false,
@@ -50,6 +53,36 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
       } catch (error) {
         console.error("Failed to open key selector", error);
       }
+    }
+  };
+
+  const handleTestGeminiApi = async () => {
+    if (!manualKey) {
+      alert('⚠️ Vui lòng nhập API key trước khi test');
+      return;
+    }
+
+    setIsTestingApi(true);
+    try {
+      // Test with a simple prompt
+      const { GoogleGenAI } = await import('@google/genai');
+      const genAI = new GoogleGenAI({ apiKey: manualKey });
+      const model = settings.aiModel;
+
+      const result = await genAI.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: 'Hello' }] }]
+      });
+
+      const text = result.text;
+
+      if (text) {
+        alert(`✅ API Key hợp lệ!\n\nModel: ${settings.aiModel}\nPhản hồi test: "${text.slice(0, 50)}..."`);
+      }
+    } catch (error: any) {
+      alert(`❌ API Key không hợp lệ!\n\nLỗi: ${error.message || 'Không thể kết nối với Gemini API'}`);
+    } finally {
+      setIsTestingApi(false);
     }
   };
 
@@ -171,10 +204,10 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
 
                   <div className="relative">
                     <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-2 block">Cấu hình Chìa khóa (API Key)</label>
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-col gap-3">
                       <div className="flex-1 relative">
                         <input
-                          type="password"
+                          type={showApiKey ? "text" : "password"}
                           value={manualKey}
                           onChange={(e) => {
                             setManualKey(e.target.value);
@@ -182,16 +215,44 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                             setHasKey(!!e.target.value);
                           }}
                           placeholder="Nhập Gemini API Key tại đây..."
-                          className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none font-mono"
+                          className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 pr-24 text-white focus:ring-1 focus:ring-primary outline-none font-mono text-sm"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-sm">vpn_key</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white transition-colors"
+                          title={showApiKey ? "Ẩn API key" : "Hiện API key"}
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            {showApiKey ? 'visibility_off' : 'visibility'}
+                          </span>
+                        </button>
                       </div>
-                      {/* Optional: Keep the secure helper button if it exists, or remove if redundant */}
+
+                      {/* Masked preview when not showing */}
+                      {!showApiKey && manualKey && (
+                        <div className="text-xs font-mono text-text-secondary bg-background-dark/50 px-3 py-2 rounded-lg border border-border-dark/30">
+                          🔒 {maskApiKey(manualKey)}
+                        </div>
+                      )}
+
+                      {/* Test API button */}
+                      <button
+                        type="button"
+                        onClick={handleTestGeminiApi}
+                        disabled={!manualKey || isTestingApi}
+                        className="w-full sm:w-auto px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-border-dark transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          {isTestingApi ? 'progress_activity' : 'verified'}
+                        </span>
+                        {isTestingApi ? 'Đang kiểm tra...' : 'Test API Connection'}
+                      </button>
                     </div>
                   </div>
 
                   <p className="text-[10px] text-text-secondary leading-relaxed bg-white/5 p-3 rounded-lg border border-white/5">
-                    <span className="text-primary font-bold">Lưu ý:</span> Bạn cần chọn một API Key từ một dự án Google Cloud đã được kích hoạt thanh toán (Paid Project).
+                    <span className="text-primary font-bold">💡 Lưu ý:</span> Bạn cần chọn một API Key từ một dự án Google Cloud đã được kích hoạt thanh toán (Paid Project).
                     Thông tin chi tiết về các hạn mức và chi phí có thể tìm thấy tại <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Tài liệu thanh toán Gemini</a>.
                   </p>
                 </div>
@@ -217,7 +278,7 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                     <select
                       value={settings.aiModel}
                       onChange={(e) => {
-                          handleChange('aiModel', e.target.value);
+                        handleChange('aiModel', e.target.value);
                       }}
                       className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
                     >

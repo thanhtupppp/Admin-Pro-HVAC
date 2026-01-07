@@ -6,10 +6,16 @@ import {
     doc,
     getDoc,
     setDoc,
+    addDoc,
     query,
     orderBy,
-    limit
+    limit,
+    where,
+    onSnapshot,
+    Timestamp,
+    Unsubscribe
 } from 'firebase/firestore';
+import Papa from 'papaparse';
 
 export interface SystemSettings {
     appName: string;
@@ -27,6 +33,13 @@ const DEFAULT_SETTINGS: SystemSettings = {
     geminiApiKey: ''
 };
 
+export interface AuditLogFilter {
+    startDate?: Date;
+    endDate?: Date;
+    userId?: string;
+    action?: string;
+}
+
 export const systemService = {
     getLogs: async (): Promise<ActivityEntry[]> => {
         try {
@@ -40,6 +53,115 @@ export const systemService = {
         } catch (e) {
             console.error("Failed to fetch logs", e);
             return [];
+        }
+    },
+
+    /**
+     * Get audit logs with real-time updates
+     * @param callback - Function to call when logs update
+     * @param filters - Optional filters for logs
+     * @returns Unsubscribe function to stop listening
+     */
+    getLogsRealtime: (callback: (logs: ActivityEntry[]) => void, filters?: AuditLogFilter): Unsubscribe => {
+        try {
+            let q = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(100));
+
+            // Apply filters
+            const constraints: any[] = [];
+
+            if (filters?.startDate) {
+                constraints.push(where('timestamp', '>=', Timestamp.fromDate(filters.startDate)));
+            }
+            if (filters?.endDate) {
+                constraints.push(where('timestamp', '<=', Timestamp.fromDate(filters.endDate)));
+            }
+            if (filters?.userId) {
+                constraints.push(where('userId', '==', filters.userId));
+            }
+            if (filters?.action && filters.action !== 'ALL') {
+                constraints.push(where('action', '==', filters.action));
+            }
+
+            if (constraints.length > 0) {
+                q = query(collection(db, 'activity_logs'), ...constraints, orderBy('timestamp', 'desc'), limit(100));
+            }
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const logs: ActivityEntry[] = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    logs.push({
+                        id: doc.id,
+                        ...data,
+                        // Convert Firestore Timestamp to ISO string for display
+                        timestamp: data.timestamp?.toDate?.()?.toISOString() || data.timestamp
+                    } as ActivityEntry);
+                });
+                callback(logs);
+            }, (error) => {
+                console.error('Error listening to audit logs:', error);
+                callback([]);
+            });
+
+            return unsubscribe;
+        } catch (e) {
+            console.error('Failed to setup realtime logs', e);
+            return () => { }; // Return empty unsubscribe function
+        }
+    },
+
+    /**
+     * Add audit log entry
+     * @param entry - Audit log entry
+     */
+    addAuditLog: async (entry: {
+        userId: string;
+        userName: string;
+        action: string;
+        target: string;
+        details: string;
+        ipAddress?: string;
+    }): Promise<void> => {
+        try {
+            await addDoc(collection(db, 'activity_logs'), {
+                ...entry,
+                timestamp: Timestamp.now(),
+                ipAddress: entry.ipAddress || 'Unknown'
+            });
+        } catch (e) {
+            console.error('Failed to add audit log', e);
+        }
+    },
+
+    /**
+     * Export audit logs to CSV
+     * @param logs - Logs to export
+     * @param filename - Filename for download
+     */
+    exportLogsToCSV: (logs: ActivityEntry[], filename: string = 'audit_logs.csv'): void => {
+        try {
+            const csvData = logs.map(log => ({
+                Timestamp: log.timestamp,
+                User: log.userName,
+                Action: log.action,
+                Target: log.target,
+                Details: log.details,
+                IP: (log as any).ipAddress || 'N/A'
+            }));
+
+            const csv = Papa.unparse(csvData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (e) {
+            console.error('Failed to export logs to CSV', e);
         }
     },
 

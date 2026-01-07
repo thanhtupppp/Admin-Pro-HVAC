@@ -1,18 +1,22 @@
-
 export enum ViewType {
   LOGIN = 'LOGIN',
-  DASHBOARD = 'DASHBOARD',
-  ERROR_LIST = 'ERROR_LIST',
-  ERROR_EDIT = 'ERROR_EDIT',
-  DOCUMENT_MANAGER = 'DOCUMENT_MANAGER',
-  OCR_TOOL = 'OCR_TOOL',
-  BRAND_MANAGER = 'BRAND_MANAGER',
-  USER_MANAGER = 'USER_MANAGER',
-  PLAN_MANAGER = 'PLAN_MANAGER',
-  SETTINGS = 'SETTINGS',
-  ACTIVITY_LOG = 'ACTIVITY_LOG',
-  SYSTEM_UPDATE = 'SYSTEM_UPDATE',
-  TRANSACTIONS = 'TRANSACTIONS'
+  DASHBOARD = 'dashboard',
+  ERROR_LIST = 'error_list',
+  ERROR_EDIT = 'error_edit',
+  DOCUMENT_MANAGER = 'document_manager',
+  OCR_TOOL = 'ocr_tool',
+  BRAND_MANAGER = 'brand_manager',
+  USER_MANAGER = 'user_manager',
+  PLAN_MANAGER = 'plan_manager',
+  SETTINGS = 'settings',
+  ACTIVITY_LOG = 'activity_log',
+  SYSTEM_UPDATE = 'system_update',
+  TRANSACTIONS = 'transactions',
+  AI_ASSISTANT = 'ai_assistant',
+  AI_OPS = 'ai_ops',
+  DOCUMENTS = 'DOCUMENTS',
+  VIDEO_CMS = 'video_cms',
+  FIELD_DISPATCH = 'field_dispatch'
 }
 
 export interface SystemVersion {

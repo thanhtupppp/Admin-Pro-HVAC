@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { errorService } from '../services/errorService';
 import { ErrorCode } from '../types';
+import { useDebounce } from '../utils/hooks';
 
 interface ErrorEditProps {
   errorId?: string;
@@ -12,7 +13,12 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
   const [activeTab, setActiveTab] = useState('general');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<ErrorCode | null>(null);
+
+  // Autocomplete data
+  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -30,6 +36,9 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
     severity: 'medium',
     isCommon: false,
   });
+
+  // Debounced form data for autosave
+  const debouncedFormData = useDebounce(formData, 3000);
 
   // Load error data
   useEffect(() => {
@@ -67,13 +76,54 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
     loadError();
   }, [errorId]);
 
+  // Load autocomplete data
+  useEffect(() => {
+    const loadAutocompleteData = async () => {
+      try {
+        const errors = await errorService.getErrors();
+        const brands = Array.from(new Set(errors.map(e => e.brand).filter(Boolean)));
+        const models = Array.from(new Set(errors.map(e => e.model).filter(Boolean)));
+        setAvailableBrands(brands);
+        setAvailableModels(models);
+      } catch (err) {
+        console.error('Failed to load autocomplete data:', err);
+      }
+    };
+    loadAutocompleteData();
+  }, []);
+
+  // Autosave effect
+  useEffect(() => {
+    if (!errorId || isLoading) return;
+
+    const autoSave = async () => {
+      try {
+        setIsSaving(true);
+        const cleanSteps = debouncedFormData.steps.filter(s => s.trim() !== '');
+
+        await errorService.updateError(errorId, {
+          ...debouncedFormData,
+          steps: cleanSteps,
+        });
+
+        setLastSaved(new Date());
+      } catch (err) {
+        console.error('Autosave failed:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    autoSave();
+  }, [debouncedFormData, errorId, isLoading]);
+
   const handleSave = async () => {
     if (!errorId) return;
     setIsSaving(true);
     try {
       // Filter out empty steps
       const cleanSteps = formData.steps.filter(s => s.trim() !== '');
-      
+
       await errorService.updateError(errorId, {
         code: formData.code,
         brand: formData.brand,
@@ -89,7 +139,7 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
         severity: formData.severity,
         isCommon: formData.isCommon,
       });
-      
+
       if (onSave) onSave();
     } catch (err) {
       console.error('Failed to save error:', err);
@@ -145,29 +195,57 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
 
   return (
     <div className="p-4 lg:p-8 pb-32 max-w-5xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
-              formData.severity === 'high' ? 'bg-red-500/20 text-red-400 border-red-500/20' :
-              formData.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20' :
-              'bg-green-500/20 text-green-400 border-green-500/20'
-            }`}>
-              {formData.severity === 'high' ? 'Nghiêm trọng' : formData.severity === 'medium' ? 'Trung bình' : 'Thấp'}
-            </span>
-            <span className="text-text-secondary text-xs">ID: {errorId}</span>
+      {/* Sticky Header with Save Button */}
+      <div className="sticky top-0 z-20 bg-background-dark/95 backdrop-blur border-b border-border-dark/30 -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${formData.severity === 'high' ? 'bg-red-500/20 text-red-400 border-red-500/20' :
+                formData.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20' :
+                  'bg-green-500/20 text-green-400 border-green-500/20'
+                }`}>
+                {formData.severity === 'high' ? 'Nghiêm trọng' : formData.severity === 'medium' ? 'Trung bình' : 'Thấp'}
+              </span>
+              <span className="text-text-secondary text-xs">ID: {errorId}</span>
+            </div>
+            <h1 className="text-xl font-bold text-white">
+              {errorId ? `Chỉnh sửa: Mã lỗi ${formData.code}` : 'Thêm mã lỗi mới'}
+            </h1>
+            {lastSaved && (
+              <p className="text-xs text-text-secondary mt-1 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-green-500">check_circle</span>
+                Đã lưu tự động lúc {lastSaved.toLocaleTimeString('vi-VN')}
+              </p>
+            )}
           </div>
-          <h1 className="text-2xl font-bold text-white">
-            {errorId ? `Chỉnh sửa: Mã lỗi ${formData.code}` : 'Thêm mã lỗi mới'}
-          </h1>
-          <p className="text-text-secondary text-sm mt-1">
-            Hãng: {formData.brand || '-'} • Model: {formData.model || '-'}
-          </p>
+
+          <div className="flex items-center gap-3">
+            {isSaving && (
+              <span className="text-xs text-text-secondary flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                Đang lưu...
+              </span>
+            )}
+            <button
+              onClick={onCancel}
+              className="px-6 py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all"
+            >
+              Quay lại
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-8 py-2 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[20px]">save</span>
+              Lưu ngay
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6 overflow-x-auto no-scrollbar border-b border-border-dark/30 mb-8 sticky top-0 bg-background-dark/95 backdrop-blur z-10 pt-2">
+      <div className="flex gap-6 overflow-x-auto no-scrollbar border-b border-border-dark/30 mb-8">
         {[
           { id: 'general', label: 'Thông tin chung' },
           { id: 'diagnosis', label: 'Chẩn đoán & Nguyên nhân' },
@@ -181,9 +259,8 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
               setActiveTab(tab.id);
               document.getElementById(tab.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }}
-            className={`cursor-pointer pb-3 text-sm font-medium transition-all whitespace-nowrap border-b-2 ${
-              activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-white'
-            }`}
+            className={`cursor-pointer pb-3 text-sm font-medium transition-all whitespace-nowrap border-b-2 ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-white'
+              }`}
           >
             {tab.label}
           </button>
@@ -212,19 +289,33 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
                 <label className="text-xs font-bold text-text-secondary uppercase">Hãng sản xuất</label>
                 <input
                   type="text"
+                  list="brand-suggestions"
                   value={formData.brand}
                   onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                   className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                  placeholder="Nhập hoặc chọn hãng..."
                 />
+                <datalist id="brand-suggestions">
+                  {availableBrands.map((brand, i) => (
+                    <option key={i} value={brand} />
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-text-secondary uppercase">Model máy</label>
                 <input
                   type="text"
+                  list="model-suggestions"
                   value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                   className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                  placeholder="Nhập hoặc chọn model..."
                 />
+                <datalist id="model-suggestions">
+                  {availableModels.map((model, i) => (
+                    <option key={i} value={model} />
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-text-secondary uppercase">Mức độ</label>
@@ -428,10 +519,10 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
           </section>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar - Remove Save button (now in header) */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6 sticky top-20">
-            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-4">Hành động</h3>
+          <div className="bg-surface-dark border border-border-dark/50 rounded-2xl p-6 sticky top-28">
+            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-4">Thông tin</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-400">Trạng thái:</span>
@@ -445,19 +536,12 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
                   <option value="draft">Bản nháp</option>
                 </select>
               </div>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-              >
-                {isSaving ? 'Đang lưu...' : 'Lưu tất cả thay đổi'}
-              </button>
-              <button
-                onClick={onCancel}
-                className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-all"
-              >
-                Quay lại
-              </button>
+
+              <div className="pt-4 border-t border-border-dark/30">
+                <p className="text-xs text-text-secondary">
+                  💡 <strong>Mẹo:</strong> Thay đổi sẽ được lưu tự động sau 3 giây
+                </p>
+              </div>
             </div>
           </div>
         </div>

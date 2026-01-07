@@ -2,10 +2,98 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules allow anyone to read and write your database.
-    // Ensure you update these rules before deploying to production.
+    
+    // --- Helper Functions ---
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Get user data - WITH FALLBACK for dev
+    function getUserData() {
+      // Try to get by UID first
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.data;
+    }
+    
+    // Check roles - SIMPLIFIED for dev
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'Super Admin' ||
+        request.auth.token.email == 'thanhtupy@gmail.com' // DEV BYPASS
+      );
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && (
+        getUserData().role == 'Super Admin' || 
+        getUserData().role == 'Editor' || 
+        getUserData().role == 'Technician' ||
+        request.auth.token.email == 'thanhtupy@gmail.com' // DEV BYPASS
+      );
+    }
+    
+    function isAdminOrEditor() {
+       return isAuthenticated() && (
+         getUserData().role == 'Super Admin' || 
+         getUserData().role == 'Editor' ||
+         request.auth.token.email == 'thanhtupy@gmail.com' // DEV BYPASS
+       );
+    }
+
+    // --- Rules ---
+
+    // USERS Collection
+    match /users/{userId} {
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated(); // SIMPLIFIED for dev
+      allow update: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'plan', 'planExpiresAt']));
+      allow delete: if isSuperAdmin();
+    }
+
+    // BRANDS & MODELS Collection
+    match /brands/{brandId} {
+      allow read: if true;
+      allow write: if isAdminOrEditor();
+      
+      match /models/{modelId} {
+        allow read: if true;
+        allow write: if isAdminOrEditor();
+      }
+    }
+
+    // ERROR CODES Collection
+    match /errors/{errorId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // TRANSACTIONS Collection
+    match /transactions/{txId} {
+      allow create: if isAuthenticated();
+      allow read: if isSuperAdmin() || isAuthenticated(); // SIMPLIFIED
+      allow update: if isSuperAdmin();
+    }
+    
+    // ACTIVITY LOG Collection
+    match /activityLog/{logId} {
+      allow read: if isStaff();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+    
+    // SETTINGS Collection
+    match /settings/{settingId} {
+      allow read: if isAuthenticated(); // SIMPLIFIED
+      allow write: if isSuperAdmin();
+    }
+
+    // DEFAULT: Allow authenticated for dev
     match /{document=**} {
-      allow read, write: if true;
+      allow read: if isAuthenticated(); // DEV MODE
+      allow write: if isSuperAdmin();
     }
   }
 }
