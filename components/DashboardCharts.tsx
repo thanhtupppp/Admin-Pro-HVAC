@@ -18,20 +18,22 @@ export const RevenueChart: React.FC<{ transactions: Transaction[] }> = ({ transa
             months[key] = 0;
         }
 
-        // Fill data
-        transactions.forEach(t => {
-            if (t.status === 'completed') {
-                const d = new Date(t.createdAt);
-                // Check if within last 6 months approximately
-                const monthDiff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-                if (monthDiff >= 0 && monthDiff <= 5) {
-                    const key = `T${d.getMonth() + 1}`;
-                    if (months[key] !== undefined) {
-                        months[key] += t.amount;
+        // Fill data - Add null check
+        if (transactions && Array.isArray(transactions)) {
+            transactions.forEach(t => {
+                if (t.status === 'completed') {
+                    const d = new Date(t.createdAt);
+                    // Check if within last 6 months approximately
+                    const monthDiff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                    if (monthDiff >= 0 && monthDiff <= 5) {
+                        const key = `T${d.getMonth() + 1}`;
+                        if (months[key] !== undefined) {
+                            months[key] += t.amount;
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
         return Object.entries(months).map(([month, revenue]) => ({ month, revenue }));
     }, [transactions]);
@@ -82,25 +84,26 @@ export const UserGrowthChart: React.FC<{ users: AdminUser[] }> = ({ users }) => 
             const key = `T${d.getMonth() + 1}`;
             months[key] = 0;
         }
-        
+
         // Count accumulated users? Or new users per month? 
         // Showing "New Users" per month is better for growth chart bars. 
         // If "Total Growth", use Line/Area. Let's do "New Users" (Bar).
-        
-        users.forEach(u => {
-            // Fallback for users without createdAt (assume old)
-            // Or better, skip them for growth chart or put in "Older" bucket
-            if (u.createdAt) {
-                 const d = new Date(u.createdAt);
-                 const monthDiff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-                 if (monthDiff >= 0 && monthDiff <= 5) {
-                     const key = `T${d.getMonth() + 1}`;
-                     if (months[key] !== undefined) {
-                         months[key]++;
-                     }
-                 }
-            }
-        });
+        if (users && Array.isArray(users)) {
+            users.forEach(u => {
+                // Fallback for users without createdAt (assume old)
+                // Or better, skip them for growth chart or put in "Older" bucket
+                if (u.createdAt) {
+                    const d = new Date(u.createdAt);
+                    const monthDiff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                    if (monthDiff >= 0 && monthDiff <= 5) {
+                        const key = `T${d.getMonth() + 1}`;
+                        if (months[key] !== undefined) {
+                            months[key]++;
+                        }
+                    }
+                }
+            });
+        }
 
         return Object.entries(months).map(([month, count]) => ({ month, users: count }));
     }, [users]);
@@ -137,13 +140,15 @@ export const PlanDistributionChart: React.FC<{ users: AdminUser[] }> = ({ users 
         let free = 0;
         let premium = 0;
         let internal = 0;
-        
-        users.forEach(u => {
-            const p = (u.plan || 'Free').toLowerCase();
-            if (p === 'premium') premium++;
-            else if (p === 'internal') internal++;
-            else free++;
-        });
+
+        if (users && Array.isArray(users)) {
+            users.forEach(u => {
+                const p = (u.plan || 'Free').toLowerCase();
+                if (p === 'premium') premium++;
+                else if (p === 'internal') internal++;
+                else free++;
+            });
+        }
 
         return [
             { name: 'Free', value: free, color: '#64748b' },

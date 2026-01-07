@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { dashboardService, DashboardStats } from '../services/dashboardService';
 import { errorService } from '../services/errorService';
-import { ErrorCode } from '../types';
+import { userService } from '../services/userService';
+import { paymentService } from '../services/paymentService';
+import { ErrorCode, AdminUser, Transaction } from '../types';
 import StatCard from './StatCard';
 import DashboardCharts from './DashboardCharts';
 import { format } from 'date-fns';
@@ -15,6 +17,8 @@ const Dashboard: React.FC = () => {
     trends: { users: 12.5, revenue: 8.3, approvals: -5.2, errors: 15.7 }
   });
   const [recentErrors, setRecentErrors] = useState<ErrorCode[]>([]);
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -29,17 +33,24 @@ const Dashboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load recent errors
+  // Load additional data for charts
   useEffect(() => {
-    const fetchRecentErrors = async () => {
+    const fetchData = async () => {
       try {
-        const errors = await errorService.getErrors();
+        const [errors, users, transactions] = await Promise.all([
+          errorService.getErrors(),
+          userService.getUsers(),
+          paymentService.getTransactions()
+        ]);
+
         setRecentErrors(errors.slice(0, 5));
+        setAllUsers(users);
+        setAllTransactions(transactions);
       } catch (e) {
-        console.error("Failed to load recent errors", e);
+        console.error("Failed to load dashboard data", e);
       }
     };
-    fetchRecentErrors();
+    fetchData();
   }, []);
 
   const handleExportPDF = async () => {
@@ -146,7 +157,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Analytics Charts */}
-      <DashboardCharts />
+      <DashboardCharts transactions={allTransactions} users={allUsers} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-surface-dark border border-border-dark/50 rounded-2xl p-6">
