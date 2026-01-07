@@ -10,7 +10,34 @@ export default {
     theme: {
         extend: {
             colors: {
-                "primary": "#136dec",
+                // Industrial HVAC Color System
+                bg: {
+                    base: '#0B1220',
+                    panel: '#0F172A',
+                    soft: '#111827',
+                    hover: '#1E293B'
+                },
+                text: {
+                    primary: '#E5E7EB',
+                    secondary: '#9CA3AF',
+                    muted: '#6B7280'
+                },
+                status: {
+                    ok: '#22C55E',
+                    warn: '#F59E0B',
+                    error: '#EF4444',
+                    off: '#64748B'
+                },
+                brand: {
+                    primary: '#0EA5E9',
+                    accent: '#38BDF8'
+                },
+                border: {
+                    base: '#1E293B',
+                    light: '#334155'
+                },
+                // Legacy colors (keep for compatibility)
+                "primary": "#136dec", // Original primary
                 "background-dark": "#101822",
                 "surface-dark": "#1c2027",
                 "surface-input": "#282f39",
@@ -20,6 +47,11 @@ export default {
             fontFamily: {
                 "display": ["Lexend", "Noto Sans", "sans-serif"],
                 "body": ["Noto Sans", "sans-serif"],
+                sans: ['Inter', 'system-ui', 'sans-serif'],
+                mono: ['JetBrains Mono', 'monospace'],
+            },
+            animation: {
+                'pulse-slow': 'pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
         },
     },

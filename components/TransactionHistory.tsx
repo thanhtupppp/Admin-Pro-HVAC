@@ -1,210 +1,182 @@
 import React, { useState, useEffect } from 'react';
-import { paymentService, Transaction } from '../services/paymentService';
-import { userService } from '../services/userService';
+import { paymentService } from '../services/paymentService';
+import { Transaction } from '../types';
 
 const TransactionHistory: React.FC = () => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [filter, setFilter] = useState<'all' | Transaction['status']>('all');
-    const [loading, setLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         loadTransactions();
-    }, [filter]);
+    }, []);
 
     const loadTransactions = async () => {
-        setLoading(true);
+        setIsLoading(true);
         try {
-            if (filter === 'all') {
-                const data = await paymentService.getTransactions();
-                setTransactions(data);
-            } else {
-                const data = await paymentService.getTransactionsByStatus(filter);
-                setTransactions(data);
-            }
+            const data = await paymentService.getTransactions();
+            setTransactions(data);
+        } catch (error) {
+            console.error('Failed to load transactions', error);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
-    const handleUpdateStatus = async (id: string, status: Transaction['status'], tx: Transaction) => {
-        try {
-            // Update transaction status
-            await paymentService.updateTransactionStatus(id, status);
+    const filteredTransactions = transactions.filter(tx => {
+        const matchesStatus = filterStatus === 'all' || tx.status === filterStatus;
+        const matchesSearch = tx.userId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            tx.planName?.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesStatus && matchesSearch;
+    });
 
-            // If confirming (pending → completed), auto-activate plan
-            if (status === 'completed' && tx.status === 'pending') {
-                await paymentService.activatePlan(tx.userId, tx.planId);
-                alert(`✅ Đã kích hoạt gói ${tx.planId} cho user ${tx.userId}`);
+    const handleApprove = async (id: string) => {
+        if (confirm('Xác nhận duyệt thanh toán?')) {
+            try {
+                await paymentService.updateTransactionStatus(id, 'completed');
+                loadTransactions();
+            } catch (error) {
+                console.error('Failed to approve transaction', error);
             }
-
-            await loadTransactions();
-        } catch (e) {
-            console.error('Failed to update status:', e);
-            alert('Lỗi khi cập nhật trạng thái. Vui lòng thử lại.');
         }
     };
 
-    const getStatusBadge = (status: Transaction['status']) => {
-        switch (status) {
-            case 'completed':
-                return <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 text-xs font-bold rounded-full">Hoàn thành</span>;
-            case 'pending':
-                return <span className="px-3 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-xs font-bold rounded-full">Chờ xác nhận</span>;
-            case 'failed':
-                return <span className="px-3 py-1 bg-red-500/10 text-red-500 border border-red-500/20 text-xs font-bold rounded-full">Thất bại</span>;
+    const handleReject = async (id: string) => {
+        if (confirm('Xác nhận từ chối thanh toán?')) {
+            try {
+                await paymentService.updateTransactionStatus(id, 'failed');
+                loadTransactions();
+            } catch (error) {
+                console.error('Failed to reject transaction', error);
+            }
         }
     };
 
-    const getMethodBadge = (method: Transaction['paymentMethod']) => {
-        switch (method) {
-            case 'vietqr':
-                return <span className="text-xs text-text-secondary flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">qr_code_2</span> VietQR</span>;
-            case 'momo':
-                return <span className="text-xs text-text-secondary flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">account_balance_wallet</span> Ví MoMo</span>;
-            case 'banking':
-                return <span className="text-xs text-text-secondary flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">account_balance</span> Chuyển khoản</span>;
-            default:
-                return <span className="text-xs text-text-secondary">{method}</span>;
-        }
-    };
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                    <div className="animate-pulse-slow text-brand-primary text-4xl mb-4">●</div>
+                    <p className="text-text-secondary text-sm">Đang tải giao dịch...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            {/* Header & Filters */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="p-6 space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-bold text-white">Lịch sử thanh toán</h3>
-                    <p className="text-xs text-text-secondary">Quản lý và xác nhận giao dịch từ khách hàng</p>
+                    <h1 className="text-2xl font-semibold text-text-primary mb-1">Quản lý Thanh toán</h1>
+                    <p className="text-sm text-text-muted">{transactions.length} giao dịch</p>
                 </div>
-                <div className="flex gap-2">
-                    {['all', 'pending', 'completed', 'failed'].map((status) => (
-                        <button
-                            key={status}
-                            onClick={() => setFilter(status as any)}
-                            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${filter === status
-                                ? 'bg-primary text-white'
-                                : 'bg-white/5 text-text-secondary hover:text-white hover:bg-white/10'
-                                }`}
-                        >
-                            {status === 'all' ? 'Tất cả' : status === 'pending' ? 'Chờ xác nhận' : status === 'completed' ? 'Hoàn thành' : 'Thất bại'}
-                        </button>
-                    ))}
-                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-4 gap-4">
+                {[
+                    { label: 'Tổng giao dịch', value: transactions.length, status: 'all' },
+                    { label: 'Chờ duyệt', value: transactions.filter(t => t.status === 'pending').length, status: 'pending' },
+                    { label: 'Thành công', value: transactions.filter(t => t.status === 'completed').length, status: 'completed' },
+                    { label: 'Thất bại', value: transactions.filter(t => t.status === 'failed').length, status: 'failed' },
+                ].map((stat, i) => (
+                    <div key={i} className="industrial-card">
+                        <div className="text-xs text-text-muted mb-1">{stat.label}</div>
+                        <div className="text-2xl font-mono font-semibold text-text-primary">{stat.value}</div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Filters */}
+            <div className="flex gap-4">
+                <input
+                    type="text"
+                    placeholder="Tìm kiếm giao dịch..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1 bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                />
+                <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="completed">Thành công</option>
+                    <option value="failed">Thất bại</option>
+                </select>
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-surface-dark border border-border-dark/50 rounded-2xl overflow-hidden">
-                {loading ? (
-                    <div className="p-12 text-center">
-                        <span className="material-symbols-outlined text-4xl text-primary animate-spin">sync</span>
-                        <p className="text-sm text-text-secondary mt-2">Đang tải...</p>
-                    </div>
-                ) : (
-                    <table className="w-full">
-                        <thead className="bg-background-dark/50 text-[10px] font-bold text-text-secondary uppercase tracking-widest">
-                            <tr>
-                                <th className="px-6 py-4 text-left">User</th>
-                                <th className="px-6 py-4 text-left">Gói</th>
-                                <th className="px-6 py-4 text-left">Số tiền</th>
-                                <th className="px-6 py-4 text-left">Phương thức</th>
-                                <th className="px-6 py-4 text-center">Trạng thái</th>
-                                <th className="px-6 py-4 text-left">Ngày</th>
-                                <th className="px-6 py-4 text-right">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border-dark/20">
-                            {transactions.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <span className="material-symbols-outlined text-4xl text-text-secondary/30">receipt</span>
-                                            <p className="text-sm text-text-secondary">
-                                                {filter === 'all' ? 'Chưa có giao dịch nào' : `Không có giao dịch ${filter}`}
-                                            </p>
+            <div className="industrial-card">
+                <table className="industrial-table">
+                    <thead>
+                        <tr>
+                            <th>Thời gian</th>
+                            <th>Người dùng</th>
+                            <th>Gói dịch vụ</th>
+                            <th>Số tiền</th>
+                            <th>Trạng thái</th>
+                            <th className="text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredTransactions.map((tx) => (
+                            <tr key={tx.id}>
+                                <td className="font-mono text-text-muted text-sm">
+                                    {new Date(tx.createdAt).toLocaleString('vi-VN')}
+                                </td>
+                                <td className="font-medium text-text-primary">{tx.userId}</td>
+                                <td className="text-text-secondary">{tx.planName || '—'}</td>
+                                <td className="font-mono text-brand-primary font-medium">
+                                    {tx.amount.toLocaleString('vi-VN')} VNĐ
+                                </td>
+                                <td>
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${tx.status === 'completed' ? 'status-ok' :
+                                        tx.status === 'pending' ? 'status-warn' :
+                                            'status-error'
+                                        }`}>
+                                        {tx.status === 'completed' ? '● Thành công' :
+                                            tx.status === 'pending' ? '⚠ Chờ duyệt' :
+                                                '✕ Thất bại'}
+                                    </span>
+                                </td>
+                                <td className="text-right">
+                                    {tx.status === 'pending' && (
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => handleApprove(tx.id)}
+                                                className="text-text-secondary hover:text-status-ok transition-colors"
+                                                title="Duyệt"
+                                            >
+                                                <span className="material-symbols-outlined text-xl">check_circle</span>
+                                            </button>
+                                            <button
+                                                onClick={() => handleReject(tx.id)}
+                                                className="text-text-secondary hover:text-status-error transition-colors"
+                                                title="Từ chối"
+                                            >
+                                                <span className="material-symbols-outlined text-xl">cancel</span>
+                                            </button>
                                         </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                transactions.map((tx) => (
-                                    <tr key={tx.id} className="group hover:bg-white/[0.01] transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div>
-                                                <p className="text-sm font-bold text-white">{tx.userEmail || tx.userId}</p>
-                                                <p className="text-[10px] text-text-secondary font-mono">{tx.id}</p>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-sm text-white font-medium">
-                                                {tx.planName && tx.planName.trim() !== "" ? tx.planName : `Gói ${tx.planId.substring(0, 8)}...`}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-sm font-bold text-primary">{tx.amount.toLocaleString()}₫</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {getMethodBadge(tx.paymentMethod)}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            {getStatusBadge(tx.status)}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-xs text-text-secondary">
-                                                <p>{new Date(tx.createdAt).toLocaleDateString('vi-VN')}</p>
-                                                <p>{new Date(tx.createdAt).toLocaleTimeString('vi-VN')}</p>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex justify-end gap-2">
-                                                {tx.status === 'pending' && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(tx.id, 'completed', tx)}
-                                                            className="px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 rounded-lg text-xs font-bold transition-all"
-                                                        >
-                                                            Xác nhận
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(tx.id, 'failed', tx)}
-                                                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-xs font-bold transition-all"
-                                                        >
-                                                            Từ chối
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {tx.status !== 'pending' && (
-                                                    <span className="text-xs text-text-secondary italic">-</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+
+                {filteredTransactions.length === 0 && (
+                    <div className="text-center py-12 text-text-muted">
+                        {searchTerm || filterStatus !== 'all'
+                            ? 'Không tìm thấy giao dịch phù hợp'
+                            : 'Chưa có giao dịch nào'}
+                    </div>
                 )}
             </div>
-
-            {/* Stats */}
-            {transactions.length > 0 && (
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-surface-dark border border-border-dark/50 rounded-xl p-4">
-                        <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Tổng giao dịch</p>
-                        <p className="text-2xl font-bold text-white mt-1">{transactions.length}</p>
-                    </div>
-                    <div className="bg-surface-dark border border-border-dark/50 rounded-xl p-4">
-                        <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Chờ xác nhận</p>
-                        <p className="text-2xl font-bold text-yellow-500 mt-1">
-                            {transactions.filter(tx => tx.status === 'pending').length}
-                        </p>
-                    </div>
-                    <div className="bg-surface-dark border border-border-dark/50 rounded-xl p-4">
-                        <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Tổng doanh thu</p>
-                        <p className="text-2xl font-bold text-green-500 mt-1">
-                            {transactions.filter(tx => tx.status === 'completed').reduce((sum, tx) => sum + tx.amount, 0).toLocaleString()}₫
-                        </p>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

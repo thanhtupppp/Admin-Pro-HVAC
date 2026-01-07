@@ -1,21 +1,149 @@
 @import "tailwindcss";
 
+/* ============================================
+   INDUSTRIAL HVAC DESIGN SYSTEM
+   Admin Pro HVAC - Chuẩn công nghiệp
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 :root {
-  font-family: 'Lexend', sans-serif;
+  /* Background Colors - Industrial Dark */
+  --bg-base: #0B1220;
+  --bg-panel: #0F172A;
+  --bg-soft: #111827;
+  --bg-hover: #1E293B;
+
+  /* Text Colors */
+  --text-primary: #E5E7EB;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
+
+  /* Status Colors - HVAC Industrial */
+  --status-ok: #22C55E;
+  --status-warn: #F59E0B;
+  --status-error: #EF4444;
+  --status-off: #64748B;
+
+  /* Brand Colors */
+  --brand-primary: #0EA5E9;
+  --brand-accent: #38BDF8;
+
+  /* Border Colors */
+  --border-base: #1E293B;
+  --border-light: #334155;
+
+  /* Typography */
+  font-family: 'Inter', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
+  
+  /* Tabular numbers for metrics */
+  font-feature-settings: "tnum" 1;
 }
 
 body {
-  background-color: #101822;
-  /* background-dark */
-  color: white;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   margin: 0;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Scrollbar */
+/* Typography System */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Industrial UI Components */
+.industrial-card {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-base);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.industrial-card:hover {
+  border-color: var(--border-light);
+  background-color: var(--bg-soft);
+}
+
+/* Status Indicators */
+.status-ok {
+  color: var(--status-ok);
+}
+
+.status-warn {
+  color: var(--status-warn);
+}
+
+.status-error {
+  color: var(--status-error);
+}
+
+.status-off {
+  color: var(--status-off);
+}
+
+/* Data Tables - Industrial */
+.industrial-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.industrial-table thead {
+  background-color: var(--bg-soft);
+  border-bottom: 2px solid var(--border-base);
+}
+
+.industrial-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.industrial-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.industrial-table tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Scrollbar - Industrial */
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: var(--bg-soft);
+  border-radius: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-primary);
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -25,15 +153,32 @@ body {
   scrollbar-width: none;
 }
 
-.custom-scroll::-webkit-scrollbar {
-  width: 6px;
+/* Focus States - Accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
 }
 
-.custom-scroll::-webkit-scrollbar-track {
-  background: #1c2027;
+/* Loading Animation */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.custom-scroll::-webkit-scrollbar-thumb {
-  background: #3b4554;
-  border-radius: 3px;
+.animate-pulse-slow {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Print Styles для technician reports */
+@media print {
+  body {
+    background-color: white;
+    color: black;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
 }
