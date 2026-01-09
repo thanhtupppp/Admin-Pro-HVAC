@@ -10,22 +10,21 @@ class PlanRepository {
   Future<List<PlanModel>> getPlans() async {
     try {
       final snapshot = await _firestore
-          .collection('plans')
-          .orderBy('price', descending: false)
+          .collection('servicePlans') // Updated collection name
+          .where('status', isEqualTo: 'active')
           .get();
 
-      return snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            // ID is usually in doc.id, but let's check if data has id.
-            // Our PlanModel expects id.
-            data['id'] = doc.id;
-            return PlanModel.fromJson(data);
-          })
-          .where((plan) => plan.status == 'active')
-          .toList();
+      final plans = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return PlanModel.fromJson(data);
+      }).toList();
+
+      // Sort in memory to avoid index requirement
+      plans.sort((a, b) => a.price.compareTo(b.price));
+
+      return plans;
     } catch (e, stack) {
-      // Return empty list or throw custom error
       // ignore: avoid_print
       print('Error fetching plans: $e');
       // ignore: avoid_print

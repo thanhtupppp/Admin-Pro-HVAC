@@ -21,6 +21,7 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
   const [error, setError] = useState<ErrorCode | null>(null);
   const [brands, setBrands] = useState<string[]>([]);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Drag & Drop sensors
   const sensors = useSensors(
@@ -33,7 +34,9 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
 
   // Autocomplete data
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
+  const [knownBrands, setKnownBrands] = useState<{ id: string, name: string }[]>([]);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [cachedErrors, setCachedErrors] = useState<ErrorCode[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -50,6 +53,7 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
     status: 'active',
     severity: 'medium',
     isCommon: false,
+    deviceType: 'AC',
   });
 
   // Debounced form data for autosave
@@ -82,6 +86,12 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
             status: errorData.status || 'active',
             severity: errorData.severity || 'medium',
             isCommon: errorData.isCommon || false,
+            deviceType: errorData.deviceType || (() => {
+              const text = `${errorData.title || ''} ${errorData.model || ''} ${errorData.brand || ''}`.toLowerCase();
+              if (text.includes('máy giặt') || text.includes('washer') || text.includes('lồng giặt')) return 'Washer';
+              if (text.includes('tủ lạnh') || text.includes('fridge') || text.includes('đông')) return 'Fridge';
+              return 'AC';
+            })(),
           });
         }
       } catch (err) {
@@ -93,21 +103,101 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
     loadError();
   }, [errorId]);
 
-  // Load autocomplete data
+  // Load autocomplete data (Brands & Models)
   useEffect(() => {
     const loadAutocompleteData = async () => {
       try {
+        // Fetch brands from brandService
+        const brandsData = await brandService.getBrands();
+        setKnownBrands(brandsData.map(b => ({ id: b.id, name: b.name })));
+        setAvailableBrands(brandsData.map(b => b.name));
+
+        // Fetch all errors for legacy data
         const errors = await errorService.getErrors();
-        const brands = Array.from(new Set(errors.map(e => e.brand).filter(Boolean)));
-        const models = Array.from(new Set(errors.map(e => e.model).filter(Boolean)));
-        setAvailableBrands(brands);
-        setAvailableModels(models);
+        setCachedErrors(errors);
+        
+        const legacyBrands = Array.from(new Set(errors.map(e => e.brand).filter(Boolean)));
+        setAvailableBrands(prev => Array.from(new Set([...prev, ...legacyBrands])));
       } catch (err) {
         console.error('Failed to load autocomplete data:', err);
       }
     };
     loadAutocompleteData();
   }, []);
+
+
+
+  // Filter models when Brand changes
+  useEffect(() => {
+    const fetchModels = async () => {
+      let modelsFromService: string[] = [];
+      let modelsFromErrors: string[] = [];
+
+      // Clean the brand input
+      const cleanBrand = formData.brand.trim().toLowerCase();
+
+      // 1. Get models from BrandService if possible
+      if (cleanBrand) {
+        const matchingBrand = knownBrands.find(b => b.name.toLowerCase() === cleanBrand);
+        if (matchingBrand) {
+          try {
+            const models = await brandService.getModelsByBrand(matchingBrand.id);
+            modelsFromService = models.map(m => m.name);
+          } catch (e) {
+            console.error('Failed to load models for brand', e);
+          }
+        }
+      }
+
+      // 2. Get models from Cached Errors (legacy)
+      if (cachedErrors.length > 0 && cleanBrand) {
+         modelsFromErrors = Array.from(new Set(
+           cachedErrors
+             .filter(e => e.brand.toLowerCase() === cleanBrand)
+             .map(e => e.model)
+             .filter(Boolean)
+         ));
+      }
+
+      // 3. Merge and Unique
+      const combined = Array.from(new Set([...modelsFromService, ...modelsFromErrors]));
+      
+      // Filter out weird legacy values or placeholders if needed
+      const filtered = combined.filter(m => 
+        m.trim().length > 0 && 
+        m.toLowerCase() !== 'all models' && 
+        m.toLowerCase() !== 'tất cả'
+      );
+      
+      filtered.sort(); // Sort alphabetically
+      setAvailableModels(filtered);
+    };
+    fetchModels();
+  }, [formData.brand, knownBrands, cachedErrors]);
+
+  // Render helper for autocomplete list
+  const renderSuggestions = (field: 'brand' | 'model', options: string[]) => {
+    if (focusedField !== field || options.length === 0) return null;
+
+    return (
+      <div className="absolute z-[100] w-full mt-1 bg-[#1c2027] border border-border-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+        {options.map((option, i) => (
+          <button
+            key={i}
+            className="w-full text-left px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors border-b border-border-dark/30 last:border-0"
+            onMouseDown={(e) => {
+              e.preventDefault(); // Prevent blur
+              setFormData({ ...formData, [field]: option });
+              setFocusedField(null);
+            }}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
 
   // Autosave effect
   useEffect(() => {
@@ -156,6 +246,7 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
         status: formData.status as 'active' | 'pending' | 'draft',
         severity: formData.severity as 'high' | 'medium' | 'low',
         isCommon: formData.isCommon,
+        deviceType: formData.deviceType as 'AC' | 'Fridge' | 'Washer' | 'Other',
       };
 
       if (errorId && errorId !== 'new') {
@@ -329,38 +420,60 @@ const ErrorEdit: React.FC<ErrorEditProps> = ({ errorId, onCancel, onSave }) => {
                   className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
                 <label className="text-xs font-bold text-text-secondary uppercase">Hãng sản xuất</label>
-                <input
-                  type="text"
-                  list="brand-suggestions"
-                  value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
-                  placeholder="Nhập hoặc chọn hãng..."
-                />
-                <datalist id="brand-suggestions">
-                  {availableBrands.map((brand, i) => (
-                    <option key={i} value={brand} />
-                  ))}
-                </datalist>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    onFocus={() => setFocusedField('brand')}
+                    onBlur={() => setTimeout(() => setFocusedField(null), 200)}
+                    className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                    placeholder="Nhập hoặc chọn hãng..."
+                  />
+                  {/* Chevron Icon */}
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
+                    <span className="material-symbols-outlined">expand_more</span>
+                  </div>
+                </div>
+                {renderSuggestions('brand', availableBrands.filter(b => b.toLowerCase().includes(formData.brand.toLowerCase())))}
               </div>
-              <div className="space-y-2">
+
+              <div className="space-y-2 relative">
                 <label className="text-xs font-bold text-text-secondary uppercase">Model máy</label>
-                <input
-                  type="text"
-                  list="model-suggestions"
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
-                  placeholder="Nhập hoặc chọn model..."
-                />
-                <datalist id="model-suggestions">
-                  {availableModels.map((model, i) => (
-                    <option key={i} value={model} />
-                  ))}
-                </datalist>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                    onFocus={() => setFocusedField('model')}
+                    onBlur={() => setTimeout(() => setFocusedField(null), 200)}
+                    className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                    placeholder="Nhập hoặc chọn model..."
+                  />
+                  {/* Chevron Icon */}
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
+                    <span className="material-symbols-outlined">expand_more</span>
+                  </div>
+                </div>
+                {renderSuggestions('model', availableModels.filter(m => m.toLowerCase().includes(formData.model.toLowerCase())))}
               </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-text-secondary uppercase">Loại thiết bị</label>
+                <select
+                  value={formData.deviceType}
+                  onChange={(e) => setFormData({ ...formData, deviceType: e.target.value })}
+                  className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-primary outline-none"
+                >
+                  <option value="AC">Điều hòa (Máy lạnh)</option>
+                  <option value="Fridge">Tủ lạnh</option>
+                  <option value="Washer">Máy giặt</option>
+                  <option value="Other">Khác</option>
+                </select>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-bold text-text-secondary uppercase">Mức độ</label>
                 <select

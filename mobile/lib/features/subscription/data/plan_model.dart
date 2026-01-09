@@ -1,16 +1,15 @@
-import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
+class PlanLimits {
+  final int maxUsers;
+  final int maxErrorCodes;
+  final int aiQuota;
 
-class PlanFeature {
-  final String label;
-  final bool enabled;
+  PlanLimits({this.maxUsers = 1, this.maxErrorCodes = 10, this.aiQuota = 1000});
 
-  PlanFeature({required this.label, required this.enabled});
-
-  factory PlanFeature.fromJson(Map<String, dynamic> json) {
-    return PlanFeature(
-      label: json['label'] ?? '',
-      enabled: json['enabled'] ?? false,
+  factory PlanLimits.fromJson(Map<String, dynamic> json) {
+    return PlanLimits(
+      maxUsers: json['maxUsers'] ?? 1,
+      maxErrorCodes: json['maxErrorCodes'] ?? 10,
+      aiQuota: json['aiQuota'] ?? 1000,
     );
   }
 }
@@ -18,34 +17,31 @@ class PlanFeature {
 class PlanModel {
   final String id;
   final String name;
-  final String displayName;
-  final double price; // Using double for currency
-  final String billingCycle;
+  final double price;
+  final String billingCycle; // 'monthly' | 'yearly'
   final String description;
-  final List<PlanFeature> features;
-  final String? badge;
-  final String? badgeColorString;
+  final List<String> features;
+  final PlanLimits limits;
   final bool isPopular;
-  final String tier;
+  final double? discount;
   final String status;
+  final String tier;
 
   PlanModel({
     required this.id,
     required this.name,
-    required this.displayName,
     required this.price,
     required this.billingCycle,
-    required this.tier,
     required this.description,
     required this.features,
-    this.badge,
-    this.badgeColorString,
+    required this.limits,
     this.isPopular = false,
+    this.discount,
     this.status = 'active',
+    this.tier = 'Basic',
   });
 
   factory PlanModel.fromJson(Map<String, dynamic> json) {
-    // Helper to get double safely
     double parseDouble(dynamic value) {
       if (value == null) return 0.0;
       if (value is num) return value.toDouble();
@@ -53,57 +49,38 @@ class PlanModel {
       return 0.0;
     }
 
-    final name = json['name']?.toString() ?? json['Name']?.toString() ?? '';
-    final displayName =
-        json['displayName']?.toString() ??
-        json['DisplayName']?.toString() ??
-        json['display_name']?.toString() ??
-        '';
-
-    // Handle features safely (Map vs String legacy)
-    final featuresRaw = json['features'] ?? json['Features'];
-    List<PlanFeature> features = [];
-    if (featuresRaw is List) {
-      features = featuresRaw.map<PlanFeature>((e) {
-        if (e is Map) {
-          return PlanFeature.fromJson(Map<String, dynamic>.from(e));
-        } else {
-          // Fallback for legacy string features
-          return PlanFeature(label: e.toString(), enabled: true);
-        }
-      }).toList();
+    // Parse features (handle legacy list of objects if any, though Web Admin saves strings)
+    List<String> featuresList = [];
+    if (json['features'] is List) {
+      featuresList = (json['features'] as List)
+          .map((e) {
+            if (e is String) return e;
+            if (e is Map) return e['label']?.toString() ?? '';
+            return e.toString();
+          })
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
 
     return PlanModel(
       id: json['id']?.toString() ?? '',
-      name: name,
-      displayName: displayName,
-      price: parseDouble(json['price'] ?? json['Price']),
-      billingCycle:
-          (json['billingCycle'] ?? json['billing_cycle'])?.toString() ??
-          'monthly',
-      tier: (json['tier'] ?? 'Internal').toString(),
-      description:
-          (json['description'] ?? json['Description'])?.toString() ?? '',
-      features: features,
-      badge: (json['badge'] ?? json['Badge'])?.toString(),
-      badgeColorString: (json['badgeColor'] ?? json['badge_color'])?.toString(),
-      isPopular: json['popular'] == true || json['isPopular'] == true,
-      status: json['status']?.toString() ?? 'inactive',
+      name: json['name']?.toString() ?? 'Gói dịch vụ',
+      price: parseDouble(json['price']),
+      billingCycle: json['billingCycle']?.toString() ?? 'monthly',
+      description: json['description']?.toString() ?? '',
+      features: featuresList,
+      limits: json['limits'] != null
+          ? PlanLimits.fromJson(Map<String, dynamic>.from(json['limits']))
+          : PlanLimits(),
+      isPopular: json['isPopular'] == true || json['popular'] == true,
+      discount: json['discount'] != null ? parseDouble(json['discount']) : null,
+      status: json['status']?.toString() ?? 'active',
+      tier: json['tier']?.toString() ?? 'Basic',
     );
   }
 
-  // Helper to get Color from string
-  Color get badgeColor {
-    if (badgeColorString == 'primary') return AppColors.primary;
-    if (badgeColorString == 'gray') return Colors.grey;
-    return AppColors.primary; // Default
-  }
-
-  // Format Price
   String get formattedPrice {
     if (price == 0) return 'Miễn phí';
-    // Simple formatter, can use NumberFormat if Intl is set up
     return '${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}₫';
   }
 }

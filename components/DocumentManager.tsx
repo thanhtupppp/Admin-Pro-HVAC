@@ -1,10 +1,19 @@
+
 import React, { useState, useEffect } from 'react';
 import { documentService, Document } from '../services/documentService';
+import { errorService } from '../services/errorService';
 import { brandService } from '../services/brandService';
-import { Brand } from '../types';
+import { Brand, ErrorCode } from '../types';
+
+// Extended interface to handle both manual docs and aggregated error assets
+interface AggregatedDocument extends Document {
+    isAggregated?: boolean;
+    errorCodes?: string[];
+    url?: string;
+}
 
 const DocumentManager: React.FC = () => {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<AggregatedDocument[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBrand, setSelectedBrand] = useState('All');
@@ -23,7 +32,7 @@ const DocumentManager: React.FC = () => {
 
   // Preview modal states
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<AggregatedDocument | null>(null);
 
   // Edit modal states
   const [showEditModal, setShowEditModal] = useState(false);
@@ -36,11 +45,54 @@ const DocumentManager: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [docs, allBrands] = await Promise.all([
+      const [manualDocs, allBrands, errorCodes] = await Promise.all([
         documentService.getDocuments(),
-        brandService.getBrands()
+        brandService.getBrands(),
+        errorService.getErrors()
       ]);
-      setDocuments(docs);
+
+      // 1. Process Manual Documents
+      const processedManualDocs: AggregatedDocument[] = manualDocs.map(d => ({
+          ...d,
+          isAggregated: false,
+          errorCodes: []
+      }));
+
+      // 2. Aggregate from Error Codes
+      const aggregatedDocsMap = new Map<string, AggregatedDocument>();
+
+      errorCodes.forEach(err => {
+          if (err.images && err.images.length > 0) {
+              err.images.forEach(imgUrl => {
+                  // Use URL as key to deduplicate
+                  if (aggregatedDocsMap.has(imgUrl)) {
+                      const existing = aggregatedDocsMap.get(imgUrl)!;
+                      if (existing.errorCodes && !existing.errorCodes.includes(err.code)) {
+                          existing.errorCodes.push(err.code);
+                      }
+                  } else {
+                      aggregatedDocsMap.set(imgUrl, {
+                          id: imgUrl, // Use URL as ID for aggregated items
+                          fileId: imgUrl, // Use URL as fileId
+                          title: `Ảnh lỗi ${err.code}`, // Default title
+                          brand: err.brand,
+                          model_series: err.model,
+                          type: 'image',
+                          previewUrl: imgUrl,
+                          url: imgUrl,
+                          createdAt: err.updatedAt, // Use error update time
+                          isAggregated: true,
+                          errorCodes: [err.code]
+                      });
+                  }
+              });
+          }
+      });
+
+      const aggregatedDocs = Array.from(aggregatedDocsMap.values());
+
+      // Combine both sources
+      setDocuments([...processedManualDocs, ...aggregatedDocs]);
       setBrands(allBrands);
     } catch (error) {
       console.error("Failed to load data", error);
@@ -52,16 +104,22 @@ const DocumentManager: React.FC = () => {
   const filteredDocuments = documents.filter(doc => {
     const matchesBrand = selectedBrand === 'All' || doc.brand === selectedBrand;
     const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.model_series?.toLowerCase().includes(searchQuery.toLowerCase());
+      doc.model_series?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (doc.errorCodes && doc.errorCodes.some(code => code.toLowerCase().includes(searchQuery.toLowerCase())));
+      
     return matchesBrand && matchesSearch;
   });
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (doc: AggregatedDocument) => {
+    if (doc.isAggregated) {
+        alert("Không thể xóa tài liệu được tổng hợp từ mã lỗi. Vui lòng vào Quản lý Mã lỗi để xóa ảnh.");
+        return;
+    }
+
     if (!window.confirm("Bạn có chắc muốn xóa tài liệu này?")) return;
     try {
-      await documentService.deleteDocument(id);
-      const docs = await documentService.getDocuments();
-      setDocuments(docs);
+      await documentService.deleteDocument(doc.id);
+      loadData(); // Reload to refresh list
     } catch (e) {
       alert("Xóa thất bại");
     }
@@ -123,7 +181,7 @@ const DocumentManager: React.FC = () => {
     }
   };
 
-  const handlePreview = (doc: Document) => {
+  const handlePreview = (doc: AggregatedDocument) => {
     setPreviewDocument(doc);
     setShowPreviewModal(true);
   };
@@ -148,7 +206,11 @@ const DocumentManager: React.FC = () => {
     return url;
   };
 
-  const handleEdit = (doc: Document) => {
+  const handleEdit = (doc: AggregatedDocument) => {
+    if (doc.isAggregated) {
+        alert("Không thể chỉnh sửa tài liệu được tổng hợp từ mã lỗi.");
+        return;
+    }
     setEditDocument(doc);
     setShowEditModal(true);
   };
@@ -189,7 +251,7 @@ const DocumentManager: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary mb-1">Kho Tài liệu</h1>
-          <p className="text-sm text-text-muted">{documents.length} tài liệu kỹ thuật</p>
+          <p className="text-sm text-text-muted">{documents.length} tài liệu (Bao gồm từ mã lỗi)</p>
         </div>
         <button
           onClick={() => setShowUploadModal(true)}
@@ -204,7 +266,7 @@ const DocumentManager: React.FC = () => {
       <div className="flex gap-4">
         <input
           type="text"
-          placeholder="Tìm kiếm tài liệu..."
+          placeholder="Tìm kiếm tài liệu, mã lỗi..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="flex-1 bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
@@ -224,26 +286,70 @@ const DocumentManager: React.FC = () => {
         <table className="industrial-table">
           <thead>
             <tr>
+              <th>Preview</th>
               <th>Tiêu đề</th>
-              <th>Hãng</th>
-              <th>Model Series</th>
-              <th>Loại</th>
+              <th>Mã lỗi liên quan</th>
+              <th>Thông tin</th>
               <th className="text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {filteredDocuments.length > 0 ? filteredDocuments.map((doc) => (
               <tr key={doc.id}>
-                <td className="font-medium text-text-primary">{doc.title}</td>
-                <td className="text-text-secondary">{doc.brand}</td>
-                <td className="text-text-muted text-sm">{doc.model_series || 'All'}</td>
+                <td className="w-24">
+                     {doc.type === 'image' || (doc.url && (doc.url.endsWith('.jpg') || doc.url.endsWith('.png'))) ? (
+                        <img 
+                            src={doc.previewUrl || doc.url} 
+                            alt={doc.title}
+                            className="w-16 h-16 object-cover rounded-lg bg-background-dark border border-border-dark"
+                            onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/100x100?text=No+Image'}
+                        />
+                     ) : (
+                        <div className="w-16 h-16 flex items-center justify-center bg-background-dark border border-border-dark rounded-lg text-text-muted">
+                            <span className="material-symbols-outlined text-2xl">
+                                {doc.type === 'pdf' ? 'picture_as_pdf' : 'description'}
+                            </span>
+                        </div>
+                     )}
+                </td>
+                <td className="font-medium text-text-primary">
+                    {doc.title}
+                    {doc.isAggregated && (
+                        <span className="ml-2 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded border border-blue-500/20">
+                            Auto
+                        </span>
+                    )}
+                </td>
                 <td>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${doc.type === 'manual' ? 'bg-brand-primary/10 text-brand-primary' :
-                    doc.type === 'schematic' ? 'bg-status-warn/10 text-status-warn' :
-                      'bg-status-ok/10 text-status-ok'
-                    }`}>
-                    {doc.type}
-                  </span>
+                    {doc.errorCodes && doc.errorCodes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                            {doc.errorCodes.slice(0, 3).map(code => (
+                                <span key={code} className="px-2 py-0.5 bg-brand-primary/10 text-brand-primary text-xs rounded font-mono">
+                                    {code}
+                                </span>
+                            ))}
+                            {doc.errorCodes.length > 3 && (
+                                <span className="text-xs text-text-muted">+{doc.errorCodes.length - 3}</span>
+                            )}
+                        </div>
+                    ) : (
+                        <span className="text-text-muted text-sm">—</span>
+                    )}
+                </td>
+                <td>
+                    <div className="flex flex-col text-xs text-text-secondary gap-1">
+                        <span><span className="text-text-muted">Hãng:</span> {doc.brand}</span>
+                        <span><span className="text-text-muted">Model:</span> {doc.model_series || 'All'}</span>
+                        <span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                doc.type === 'manual' ? 'bg-purple-500/10 text-purple-400' :
+                                doc.type === 'schematic' ? 'bg-orange-500/10 text-orange-400' :
+                                'bg-green-500/10 text-green-400'
+                            }`}>
+                                {doc.type}
+                            </span>
+                        </span>
+                    </div>
                 </td>
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
@@ -254,17 +360,20 @@ const DocumentManager: React.FC = () => {
                     >
                       <span className="material-symbols-outlined text-xl">visibility</span>
                     </button>
+                    {!doc.isAggregated && (
+                        <button
+                          onClick={() => handleEdit(doc)}
+                          className="text-text-secondary hover:text-blue-500 transition-colors"
+                          title="Sửa"
+                        >
+                          <span className="material-symbols-outlined text-xl">edit</span>
+                        </button>
+                    )}
                     <button
-                      onClick={() => handleEdit(doc)}
-                      className="text-text-secondary hover:text-blue-500 transition-colors"
-                      title="Sửa"
-                    >
-                      <span className="material-symbols-outlined text-xl">edit</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(doc.id)}
-                      className="text-text-secondary hover:text-status-error transition-colors"
-                      title="Xóa"
+                      onClick={() => handleDelete(doc)}
+                      className={`text-text-secondary transition-colors ${doc.isAggregated ? 'opacity-30 cursor-not-allowed' : 'hover:text-status-error'}`}
+                      title={doc.isAggregated ? "Không thể xóa tài liệu tự động" : "Xóa"}
+                      disabled={doc.isAggregated}
                     >
                       <span className="material-symbols-outlined text-xl">delete</span>
                     </button>
@@ -429,7 +538,7 @@ const DocumentManager: React.FC = () => {
                   ) : (
                     <>
                       {/* Local PDF Preview */}
-                      {previewDocument.previewUrl.startsWith('data:application/pdf') ? (
+                      {previewDocument.previewUrl.startsWith('data:application/pdf') || previewDocument.previewUrl.endsWith('.pdf') ? (
                         <div className="w-full h-[600px] bg-background-dark rounded-lg overflow-hidden">
                           <iframe
                             src={previewDocument.previewUrl}
@@ -588,3 +697,4 @@ const DocumentManager: React.FC = () => {
 };
 
 export default DocumentManager;
+

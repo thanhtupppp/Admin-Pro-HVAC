@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/firebaseConfig';
+import { planService } from '../services/planService';
 import { collection, onSnapshot, query, where, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 export interface ServicePlan {
@@ -142,6 +143,23 @@ const PlanManager: React.FC = () => {
               <div className="h-64"></div>
             </div>
           ))
+        ) : plans.length === 0 ? (
+          <div className="col-span-full py-12 text-center text-text-secondary">
+             <div className="mb-4">
+               <span className="material-symbols-outlined text-4xl text-gray-600">inbox</span>
+             </div>
+             <p className="mb-4">Chưa có gói dịch vụ nào</p>
+             <button 
+                onClick={async () => {
+                    if(confirm('Bạn có muốn khởi tạo các gói mặc định (Free, Basic, Premium, Enterprise)?')) {
+                        await planService.initializeDefaultPlans();
+                    }
+                }}
+                className="px-6 py-2 bg-brand-primary text-white rounded-lg font-bold hover:bg-brand-primary/80 transition-all"
+             >
+                Khởi tạo Gói Mặc định
+             </button>
+          </div>
         ) : (
           plans.map((plan) => (
             <div
@@ -261,6 +279,100 @@ const PlanManager: React.FC = () => {
                   />
                 </div>
               </div>
+
+                <div>
+                    <label className="text-xs font-bold text-text-secondary uppercase">Mô tả ngắn</label>
+                    <input
+                      type="text"
+                      value={editingPlan.description || ''}
+                      onChange={(e) => setEditingPlan({ ...editingPlan, description: e.target.value })}
+                      className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white mt-2"
+                      placeholder="VD: Dành cho cá nhân trải nghiệm..."
+                    />
+                </div>
+
+                <div>
+                    <label className="text-xs font-bold text-text-secondary uppercase mb-2 block">Giới hạn sử dụng</label>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <span className="text-[10px] text-text-muted uppercase">Users</span>
+                            <input
+                                type="number"
+                                value={editingPlan.limits.maxUsers}
+                                onChange={(e) => setEditingPlan({ ...editingPlan, limits: { ...editingPlan.limits, maxUsers: Number(e.target.value) } })}
+                                className="w-full bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-white text-sm mt-1"
+                            />
+                        </div>
+                        <div>
+                            <span className="text-[10px] text-text-muted uppercase">Errors</span>
+                            <input
+                                type="number"
+                                value={editingPlan.limits.maxErrorCodes}
+                                onChange={(e) => setEditingPlan({ ...editingPlan, limits: { ...editingPlan.limits, maxErrorCodes: Number(e.target.value) } })}
+                                className="w-full bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-white text-sm mt-1"
+                            />
+                        </div>
+                        <div>
+                            <span className="text-[10px] text-text-muted uppercase">AI Quota</span>
+                            <input
+                                type="number"
+                                value={editingPlan.limits.aiQuota}
+                                onChange={(e) => setEditingPlan({ ...editingPlan, limits: { ...editingPlan.limits, aiQuota: Number(e.target.value) } })}
+                                className="w-full bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-white text-sm mt-1"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-xs font-bold text-text-secondary uppercase flex justify-between items-center mb-2">
+                        Tính năng nổi bật
+                        <button 
+                            onClick={() => setEditingPlan({ ...editingPlan, features: [...editingPlan.features, ''] })}
+                            className="text-primary hover:text-white text-xs"
+                        >
+                            + Thêm
+                        </button>
+                    </label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scroll">
+                        {editingPlan.features.map((feature, idx) => (
+                            <div key={idx} className="flex gap-2">
+                                <input
+                                    value={feature}
+                                    onChange={(e) => {
+                                        const newFeatures = [...editingPlan.features];
+                                        newFeatures[idx] = e.target.value;
+                                        setEditingPlan({ ...editingPlan, features: newFeatures });
+                                    }}
+                                    className="flex-1 bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-white text-sm"
+                                    placeholder="Nhập tính năng..."
+                                />
+                                <button
+                                    onClick={() => {
+                                        const newFeatures = editingPlan.features.filter((_, i) => i !== idx);
+                                        setEditingPlan({ ...editingPlan, features: newFeatures });
+                                    }}
+                                    className="text-red-500 hover:text-red-400"
+                                >
+                                    <span className="material-symbols-outlined text-lg">delete</span>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-background-dark p-3 rounded-xl border border-border-dark">
+                    <input
+                        type="checkbox"
+                        id="isPopular"
+                        checked={editingPlan.isPopular || false}
+                        onChange={(e) => setEditingPlan({ ...editingPlan, isPopular: e.target.checked })}
+                        className="w-5 h-5 rounded border-gray-600 text-primary focus:ring-primary bg-transparent"
+                    />
+                    <label htmlFor="isPopular" className="text-sm font-bold text-white select-none cursor-pointer">
+                        Đánh dấu là "Phổ biến nhất" (Highlight)
+                    </label>
+                </div>
 
               <div className="flex gap-4">
                 <button

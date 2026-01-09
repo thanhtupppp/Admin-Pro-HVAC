@@ -145,6 +145,18 @@ export const systemService = {
             const { auth } = await import('./firebaseConfig');
             const currentUser = auth.currentUser;
             
+            // Try to get public IP
+            let ipAddress = 'Unknown';
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                if (response.ok) {
+                    const data = await response.json();
+                    ipAddress = data.ip;
+                }
+            } catch (ipError) {
+                console.warn('Failed to fetch IP address:', ipError);
+            }
+            
             if (currentUser) {
                 await systemService.addAuditLog({
                     userId: currentUser.uid,
@@ -152,7 +164,8 @@ export const systemService = {
                     action,
                     target,
                     details,
-                    severity
+                    severity,
+                    ipAddress
                 });
             } else {
                  // Log system actions or anonymous actions if needed
@@ -162,7 +175,8 @@ export const systemService = {
                     action,
                     target,
                     details,
-                    severity
+                    severity,
+                    ipAddress
                 });
             }
         } catch (error) {

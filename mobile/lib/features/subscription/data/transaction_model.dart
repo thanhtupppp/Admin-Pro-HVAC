@@ -10,6 +10,9 @@ class TransactionModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? couponCode;
+  final String? userName;
+  final String? userPhone;
+  final String? transferContent;
 
   TransactionModel({
     required this.id,
@@ -23,6 +26,9 @@ class TransactionModel {
     required this.createdAt,
     required this.updatedAt,
     this.couponCode,
+    this.userName,
+    this.userPhone,
+    this.transferContent,
   });
 
   Map<String, dynamic> toJson() {
@@ -37,6 +43,9 @@ class TransactionModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'couponCode': couponCode,
+      'userName': userName,
+      'userPhone': userPhone,
+      'transferContent': transferContent,
     };
   }
 
@@ -57,6 +66,9 @@ class TransactionModel {
         json['updatedAt'] ?? DateTime.now().toIso8601String(),
       ),
       couponCode: json['couponCode'],
+      userName: json['userName'],
+      userPhone: json['userPhone'],
+      transferContent: json['transferContent'],
     );
   }
 }

@@ -149,15 +149,17 @@ export const importService = {
                     const newError: Partial<ErrorCode> = {
                         code: row.code,
                         title: row.title,
-                        description: row.description || '',
-                        solution: row.solution || '',
+                        symptom: row.description || '', // Map description to symptom (or keep separate if description exists)
+                        cause: '',
+                        steps: row.solution ? [row.solution] : [],
                         brand: row.brand,
                         model: row.model || '',
-                        category: row.category || 'General',
-                        severity: row.severity || 'Medium',
+                        severity: (row.severity?.toLowerCase() as any) || 'medium',
                         status: row.status || 'active',
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
+                        components: [],
+                        tools: [],
+                        images: []
                     };
 
                     await errorService.createError(newError as ErrorCode);
@@ -228,6 +230,98 @@ export const importService = {
         const link = document.createElement('a');
         link.href = url;
         link.download = 'error_code_template.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    },
+
+    /**
+     * Import models from CSV
+     */
+    importModels: async (file: File): Promise<ImportResult> => {
+        const result: ImportResult = { success: 0, failed: 0, errors: [] };
+
+        try {
+            const data = await parseCSV(file);
+            const { brandService } = await import('./brandService');
+            const brands = await brandService.getBrands();
+
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                if (!row.name || !row.brandName) {
+                    result.failed++;
+                    result.errors.push(`Row ${i + 1}: Name and BrandName are required`);
+                    continue;
+                }
+
+                // Find Brand ID
+                const brand = brands.find(b => b.name.toLowerCase() === row.brandName.toLowerCase());
+                if (!brand) {
+                    result.failed++;
+                    result.errors.push(`Row ${i + 1}: Brand "${row.brandName}" not found`);
+                    continue;
+                }
+
+                try {
+                    // Check duplicate
+                    const models = await brandService.getModelsByBrand(brand.id);
+                    const exists = models.find(m => m.name.toLowerCase() === row.name.toLowerCase());
+                    if (exists) {
+                        result.failed++;
+                        result.errors.push(`Row ${i + 1}: Model "${row.name}" already exists in ${brand.name}`);
+                        continue;
+                    }
+
+                    // Create Model
+                    await brandService.createModel({
+                        brandId: brand.id,
+                        name: row.name,
+                        type: row.type || 'HVAC',
+                        code: row.code || '',
+                        year: row.year ? parseInt(row.year) : new Date().getFullYear(),
+                        capacity: row.capacity || '',
+                        image: row.image || '',
+                        notes: row.notes || ''
+                    });
+                    result.success++;
+                } catch (e) {
+                    result.failed++;
+                    result.errors.push(`Row ${i + 1}: ${e}`);
+                }
+            }
+
+            return result;
+        } catch (e) {
+            throw new Error(`CSV parsing failed: ${e}`);
+        }
+    },
+
+    /**
+     * Download CSV template for models
+     */
+    downloadModelTemplate: () => {
+        const template = [
+            {
+                name: 'FTKC25',
+                brandName: 'Daikin',
+                type: 'Điều hòa treo tường',
+                code: 'FTKC25UAVMV',
+                year: 2023,
+                capacity: '9000 BTU',
+                image: 'https://example.com/image.jpg',
+                notes: 'Inverter cao cấp'
+            }
+        ];
+
+        const csv = 'name,brandName,type,code,year,capacity,image,notes\n' +
+            template.map(row => `${row.name},${row.brandName},${row.type},${row.code},${row.year},${row.capacity},${row.image},${row.notes}`).join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'model_template.csv';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

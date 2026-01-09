@@ -9,7 +9,7 @@ class DashboardSearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.go('/search-lookup');
+        context.push('/search-lookup');
       },
       child: Container(
         height: 50,

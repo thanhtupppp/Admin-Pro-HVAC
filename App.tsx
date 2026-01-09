@@ -15,7 +15,8 @@ import Settings from './components/Settings';
 import AISmartAssistant from './components/AISmartAssistant';
 import AIOpsDecision from './components/AIOpsDecision';
 import VideoCMS from './components/VideoCMS';
-import FieldDispatch from './components/FieldDispatch';
+import FeedbackManager from './components/FeedbackManager';
+import { PushNotificationManager } from './components/PushNotificationManager';
 import Login from './components/Login';
 import SystemUpdate from './components/SystemUpdate';
 import { ViewType, ToastMessage } from './types';
@@ -134,10 +135,12 @@ const App: React.FC = () => {
         return <TransactionHistory />;
       case ViewType.VIDEO_CMS:
         return <VideoCMS />;
-      case ViewType.FIELD_DISPATCH:
-        return <FieldDispatch />;
       case ViewType.AI_OPS:
         return <AIOpsDecision />;
+      case ViewType.FEEDBACK_MANAGER:
+        return <FeedbackManager />;
+      case ViewType.PUSH_NOTIFICATIONS:
+        return <PushNotificationManager />;
       case ViewType.SETTINGS:
         return <Settings onSave={() => addToast("Cài đặt đã được cập nhật", "success")} />;
       default:

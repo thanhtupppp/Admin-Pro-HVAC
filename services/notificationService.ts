@@ -97,6 +97,22 @@ export const notificationService = {
     },
 
     /**
+     * Convert Feedback thành Notification
+     */
+    feedbackToNotification: (feedback: any): Notification => {
+        return {
+            id: feedback.id,
+            type: 'warning', // Important for admin attention
+            title: 'Yêu cầu hỗ trợ mới',
+            message: `${feedback.userName} gửi: "${feedback.title}" - ${feedback.content.substring(0, 50)}...`,
+            timestamp: feedback.createdAt,
+            read: feedback.status !== 'pending', // If not pending, considered handled
+            icon: 'support_agent',
+            activityId: feedback.id
+        };
+    },
+
+    /**
      * Lấy danh sách notifications (từ ActivityLog)
      */
     getNotifications: async (limitCount: number = 20): Promise<Notification[]> => {
@@ -132,6 +148,7 @@ export const notificationService = {
     ) => {
         let activities: Notification[] = [];
         let transactions: Notification[] = [];
+        let feedbacks: Notification[] = [];
 
         const updateAll = () => {
             const readIds = notificationService.getReadIds();
@@ -142,7 +159,7 @@ export const notificationService = {
                 read: readIds.includes(n.id)
             }));
 
-            const combined = [...updatedActivities, ...transactions]
+            const combined = [...updatedActivities, ...transactions, ...feedbacks]
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .slice(0, limitCount);
             callback(combined);
@@ -158,11 +175,14 @@ export const notificationService = {
             collection(db, 'transactions'),
             where('status', '==', 'pending')
         );
+        
+        const qFeedback = query(
+            collection(db, 'feedbacks'),
+            where('status', '==', 'pending')
+        );
 
         const unsubActivity = onSnapshot(qActivity, (snapshot) => {
             const readIds = notificationService.getReadIds();
-            // Store as Notifications but re-evaluate read status on updateAll
-            // Actually, best to store raw data or just map initial read status here
             activities = snapshot.docs.map(doc => 
                 notificationService.activityToNotification({ id: doc.id, ...doc.data() } as ActivityEntry, readIds)
             );
@@ -179,10 +199,20 @@ export const notificationService = {
         }, (error) => {
             console.error("Transaction Notification Error:", error);
         });
+        
+        const unsubFeedback = onSnapshot(qFeedback, (snapshot) => {
+            feedbacks = snapshot.docs.map(doc => 
+                notificationService.feedbackToNotification({ id: doc.id, ...doc.data() })
+            );
+            updateAll();
+        }, (error) => {
+            console.error("Feedback Notification Error:", error);
+        });
 
         return () => {
             unsubActivity();
             unsubTx();
+            unsubFeedback();
         };
     }
 };

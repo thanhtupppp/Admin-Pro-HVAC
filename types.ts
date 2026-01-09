@@ -16,7 +16,8 @@ export enum ViewType {
   AI_OPS = 'ai_ops',
   DOCUMENTS = 'DOCUMENTS',
   VIDEO_CMS = 'video_cms',
-  FIELD_DISPATCH = 'field_dispatch'
+  FEEDBACK_MANAGER = 'feedback_manager',
+  PUSH_NOTIFICATIONS = 'push_notifications'
 }
 
 export interface SystemVersion {
@@ -44,6 +45,7 @@ export interface ActivityEntry {
   details: string;
   timestamp: string;
   severity: 'info' | 'warning' | 'danger';
+  ipAddress?: string;
 }
 
 export interface ErrorCode {
@@ -64,6 +66,9 @@ export interface ErrorCode {
   videos?: string[];    // New (YouTube Links)
   description?: string; // Backwards compatibility
   isCommon?: boolean;   // Flag for common errors shown on mobile home
+  views?: number;       // View count for analytics
+  brandName?: string;   // Display name of the brand
+  deviceType?: 'AC' | 'Fridge' | 'Washer' | 'Other'; // Device Category
 }
 export interface Brand {
   id: string;
@@ -78,6 +83,10 @@ export interface Model {
   name: string;
   type: string;
   notes: string;
+  code?: string;
+  year?: number;
+  capacity?: string;
+  image?: string;
 }
 
 export interface AdminUser {
@@ -89,7 +98,7 @@ export interface AdminUser {
   status: 'active' | 'locked';
   avatar?: string;
   lastLogin: string;
-  plan?: 'Free' | 'Premium' | 'Internal';
+  plan?: 'Free' | 'Basic' | 'Premium' | 'Enterprise' | 'Internal';
   planId?: string;
   planName?: string;
   planExpiresAt?: string; // ISO Date String
@@ -165,16 +174,47 @@ export interface ServicePlan {
   status: 'active' | 'archived';
 }
 
+export interface PushNotification {
+  id?: string;
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+  targetType: 'all' | 'user' | 'plan';
+  targetValue?: string; // userId or planId depending on targetType
+  sentAt?: string;
+  sentBy?: string;
+}
+
 export interface Transaction {
   id: string;
   userId: string;
   userEmail: string;
+  userName?: string;
+  userPhone?: string;
   planId: string;
   planName: string;
   amount: number;
   status: 'pending' | 'completed' | 'failed' | 'rejected';
-  paymentMethod: 'vietqr' | 'momo' | 'banking';
+  paymentMethod: 'vietqr' | 'momo' | 'banking' | 'card';
+  transferContent?: string;
   createdAt: string;
   updatedAt: string;
   couponCode?: string;
+}
+
+export interface Feedback {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  type: 'general' | 'bug' | 'feature_request' | 'account';
+  title: string;
+  content: string;
+  images?: string[];
+  status: 'pending' | 'processing' | 'resolved' | 'closed';
+  adminReply?: string;
+  repliedAt?: string;
+  replyBy?: string; // Admin ID/Name
+  createdAt: string;
+  updatedAt: string;
 }

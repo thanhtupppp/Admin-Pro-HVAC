@@ -17,10 +17,10 @@ class ErrorCode {
   final List<String> images; // List of Drive links or AI images
   final List<String> videos; // YouTube links
 
-  // Mobile specific or optional fields
   final String? description; // Keep for backward compatibility or generic use
   final String? imageUrl; // Keep for single image backward compatibility
   final bool isCommon;
+  final String deviceType; // 'AC', 'Fridge', 'Washer', 'Other'
 
   ErrorCode({
     required this.id,
@@ -41,6 +41,7 @@ class ErrorCode {
     this.description,
     this.imageUrl,
     this.isCommon = false,
+    this.deviceType = 'Other',
   });
 
   // Helper to parse updatedAt which can be Timestamp (from mobile) or String (from web)
@@ -57,6 +58,45 @@ class ErrorCode {
     return DateTime.now();
   }
 
+  static String _inferDeviceType(Map<String, dynamic> data) {
+    if (data['deviceType'] != null &&
+        data['deviceType'].toString().isNotEmpty) {
+      return data['deviceType'];
+    }
+
+    final text =
+        '${data['title']} ${data['model']} ${data['brand']} ${data['symptom']}'
+            .toLowerCase();
+
+    if (text.contains('máy giặt') ||
+        text.contains('washer') ||
+        text.contains('lồng giặt')) {
+      return 'Washer';
+    }
+    if (text.contains('tủ lạnh') ||
+        text.contains('fridge') ||
+        text.contains('đông') ||
+        text.contains('lạnh')) {
+      // "lạnh" is tricky because "máy lạnh" (AC). Check specifically "tủ lạnh" or assume AC for "máy lạnh".
+      if (text.contains('tủ lạnh') ||
+          text.contains('ngăn đông') ||
+          text.contains('fridge')) {
+        return 'Fridge';
+      }
+    }
+    // Default or detected for AC
+    if (text.contains('điều hòa') ||
+        text.contains('máy lạnh') ||
+        text.contains('air conditioner') ||
+        text.contains('ac') ||
+        text.contains('inverter') ||
+        text.contains('vrv')) {
+      return 'AC';
+    }
+
+    return 'Other';
+  }
+
   factory ErrorCode.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return ErrorCode(
@@ -64,10 +104,7 @@ class ErrorCode {
       code: data['code'] ?? '',
       title: data['title'] ?? '',
       brand: data['brand'] ?? '',
-      model:
-          data['model'] ??
-          data['subtitle'] ??
-          '', // Fallback to subtitle if model missing
+      model: data['model'] ?? data['subtitle'] ?? '',
       symptom: data['symptom'] ?? '',
       cause: data['cause'] ?? '',
       components: List<String>.from(data['components'] ?? []),
@@ -81,11 +118,37 @@ class ErrorCode {
       videos: List<String>.from(data['videos'] ?? []),
       tools: List<String>.from(data['tools'] ?? []),
       isCommon: data['isCommon'] ?? false,
+      deviceType: _inferDeviceType(data),
+    );
+  }
+
+  factory ErrorCode.fromMap(Map<String, dynamic> map, String id) {
+    return ErrorCode(
+      id: id.isNotEmpty ? id : (map['id'] ?? ''),
+      code: map['code'] ?? '',
+      title: map['title'] ?? '',
+      brand: map['brand'] ?? '',
+      model: map['model'] ?? map['subtitle'] ?? '',
+      symptom: map['symptom'] ?? '',
+      cause: map['cause'] ?? '',
+      components: List<String>.from(map['components'] ?? []),
+      steps: List<String>.from(map['steps'] ?? []),
+      status: map['status'] ?? 'active',
+      severity: map['severity'] ?? 'low',
+      updatedAt: _parseDateTime(map['updatedAt']),
+      description: map['description'],
+      imageUrl: map['imageUrl'],
+      images: List<String>.from(map['images'] ?? []),
+      videos: List<String>.from(map['videos'] ?? []),
+      tools: List<String>.from(map['tools'] ?? []),
+      isCommon: map['isCommon'] ?? false,
+      deviceType: _inferDeviceType(map),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id, // Ensure ID is saved
       'code': code,
       'title': title,
       'brand': brand,
@@ -96,13 +159,14 @@ class ErrorCode {
       'steps': steps,
       'status': status,
       'severity': severity,
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'updatedAt': updatedAt.toIso8601String(), // Save as String for JSON
       'description': description,
       'imageUrl': imageUrl,
       'images': images,
       'videos': videos,
       'tools': tools,
       'isCommon': isCommon,
+      'deviceType': deviceType,
     };
   }
 }

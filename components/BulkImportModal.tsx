@@ -5,7 +5,7 @@ interface BulkImportModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    type: 'users' | 'errors';
+    type: 'users' | 'errors' | 'models';
 }
 
 const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onSuccess, type }) => {
@@ -39,8 +39,10 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onSu
             let importResult;
             if (type === 'users') {
                 importResult = await importService.importUsers(file);
-            } else {
+            } else if (type === 'errors') {
                 importResult = await importService.importErrorCodes(file);
+            } else {
+                importResult = await importService.importModels(file);
             }
             setResult(importResult);
             if (importResult.success > 0) {
@@ -57,8 +59,18 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onSu
     const handleDownloadTemplate = () => {
         if (type === 'users') {
             importService.downloadUserTemplate();
-        } else {
+        } else if (type === 'errors') {
             importService.downloadErrorTemplate();
+        } else {
+            importService.downloadModelTemplate();
+        }
+    };
+
+    const getTitle = () => {
+        switch (type) {
+            case 'users': return 'Import Users';
+            case 'errors': return 'Import Error Codes';
+            case 'models': return 'Import Models';
         }
     };
 
@@ -68,7 +80,7 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onSu
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-800">
                     <div>
-                        <h3 className="text-xl font-bold text-white">Import {type === 'users' ? 'Users' : 'Error Codes'} via CSV</h3>
+                        <h3 className="text-xl font-bold text-white">{getTitle()} via CSV</h3>
                         <p className="text-sm text-gray-400 mt-1">Upload a CSV file to bulk create records</p>
                     </div>
                     <button

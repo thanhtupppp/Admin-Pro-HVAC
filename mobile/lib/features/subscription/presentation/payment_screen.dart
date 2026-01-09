@@ -126,7 +126,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Gói ${plan.displayName}',
+                  'Gói ${plan.name}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -210,7 +210,30 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     PlanModel plan,
   ) {
     // Generate QR URL from bankSettings
-    final transferContent = 'THANH TOAN ${plan.name.toUpperCase()}';
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+    final userData =
+        authState.userData; // Assuming userData has 'phone' or 'phoneNumber'
+
+    String userIdentifier = '';
+    if (user != null) {
+      // Try to get phone
+      if (userData != null &&
+          userData['phoneNumber'] != null &&
+          userData['phoneNumber'].toString().isNotEmpty) {
+        userIdentifier = userData['phoneNumber'].toString();
+      } else if (userData != null &&
+          userData['phone'] != null &&
+          userData['phone'].toString().isNotEmpty) {
+        userIdentifier = userData['phone'].toString();
+      } else {
+        // Fallback to short UID (first 6 chars)
+        userIdentifier = user.uid.substring(0, 6).toUpperCase();
+      }
+    }
+
+    final transferContent = 'HVC $userIdentifier ${plan.name.toUpperCase()}'
+        .trim();
     final encodedContent = Uri.encodeComponent(transferContent);
     final encodedName = Uri.encodeComponent(bankSettings.accountName);
 
@@ -375,6 +398,58 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _handleConfirmPayment(BuildContext context) async {
+    final authState = ref.read(authProvider);
+    final userData = authState.userData;
+    final user = authState.user;
+
+    final email = user?.email ?? userData?['email'];
+    final phone = userData?['phoneNumber'] ?? userData?['phone'];
+
+    if (email == null ||
+        email.toString().isEmpty ||
+        phone == null ||
+        phone.toString().isEmpty) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Text(
+              'Thiếu thông tin',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'Vui lòng cập nhật đầy đủ Số điện thoại và Email để chúng tôi liên hệ kích hoạt gói dịch vụ.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => context.pop(),
+                child: const Text(
+                  'Để sau',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  context.pop();
+                  context.push('/settings/user-info');
+                },
+                child: const Text(
+                  'Cập nhật ngay',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isConfirming = true);
 
     try {
@@ -387,19 +462,37 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       }
 
       final repository = ref.read(transactionRepositoryProvider);
+
+      String userIdentifier = '';
+      String? userPhone =
+          userData?['phoneNumber']?.toString() ??
+          userData?['phone']?.toString();
+
+      if (userPhone != null && userPhone.isNotEmpty) {
+        userIdentifier = userPhone;
+      } else {
+        userIdentifier = user.uid.substring(0, 6).toUpperCase();
+      }
+
+      final transferContent =
+          'HVC $userIdentifier ${widget.plan.name.toUpperCase()}'.trim();
+
       final transaction = TransactionModel(
         id: '', // Firestore will generate this
         userId: user.uid,
+        userName: user.displayName ?? userData?['name'],
         userEmail: user.email ?? userData?['email'] ?? '',
+        userPhone: userPhone,
         planId: widget.plan.id,
-        planName: widget.plan.displayName.isNotEmpty
-            ? widget.plan.displayName
+        planName: widget.plan.name.isNotEmpty
+            ? widget.plan.name
             : (widget.plan.name.isNotEmpty
                   ? widget.plan.name
                   : 'Gói VIP (${widget.plan.id.substring(0, 5)})'),
         amount: widget.plan.price,
         status: 'pending',
         paymentMethod: 'vietqr',
+        transferContent: transferContent,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

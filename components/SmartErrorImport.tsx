@@ -18,6 +18,7 @@ interface ExtractedData {
     tools: string[];
     images: string[];
     videos?: string[];
+    confidence?: number;
 }
 
 const SmartErrorImport: React.FC = () => {
@@ -26,6 +27,9 @@ const SmartErrorImport: React.FC = () => {
 
     // Brand Data
     const [brands, setBrands] = useState<Brand[]>([]);
+
+    // Recent Imports History
+    const [recentImports, setRecentImports] = useState<any[]>([]);
 
     useEffect(() => {
         const loadBrands = async () => {
@@ -58,7 +62,8 @@ const SmartErrorImport: React.FC = () => {
         components: [],
         tools: [],
         images: [],
-        videos: []
+        videos: [],
+        confidence: 0
     });
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +98,8 @@ const SmartErrorImport: React.FC = () => {
                     steps: result.steps || [],
                     components: result.components || [],
                     tools: result.tools || [],
-                    images: [] // Placeholder for standard logic
+                    images: [], // Placeholder for standard logic
+                    confidence: result.confidence || 0
                 });
 
                 setStep(3); // Move to Validation
@@ -109,7 +115,7 @@ const SmartErrorImport: React.FC = () => {
 
     const handleSave = async () => {
         try {
-            await errorService.createError({
+            const newError: any = {
                 ...extractedData,
                 model: extractedData.model_series || 'All Models',
                 status: 'active',
@@ -119,9 +125,16 @@ const SmartErrorImport: React.FC = () => {
                 tools: extractedData.tools.filter(t => t),
                 steps: extractedData.steps.filter(s => s),
                 images: extractedData.images.filter(i => i),
-                videos: extractedData.videos?.filter(v => v) || []
-            });
+                videos: extractedData.videos?.filter(v => v) || [],
+                updatedAt: new Date().toISOString()
+            };
+
+            await errorService.createError(newError);
             alert(`Đã lưu mã lỗi ${extractedData.code} thành công!`);
+            
+            // Add to history
+            setRecentImports(prev => [newError, ...prev]);
+
             // Reset flow
             setStep(1);
             setFile(null);
@@ -290,7 +303,18 @@ const SmartErrorImport: React.FC = () => {
             {step === 3 && (
                 <div className="flex-1 flex flex-col gap-6">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-white">Bước 3: Kiểm tra & Hiệu chỉnh</h2>
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl font-bold text-white">Bước 3: Kiểm tra & Hiệu chỉnh</h2>
+                            {extractedData.confidence !== undefined && (
+                                <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
+                                    (extractedData.confidence || 0) > 80 ? 'bg-green-500/20 text-green-400' :
+                                    (extractedData.confidence || 0) > 50 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                    <span className="material-symbols-outlined text-sm">verified</span>
+                                    AI Confidence: {extractedData.confidence}%
+                                </div>
+                            )}
+                        </div>
                         <div className="flex gap-3">
                             <button onClick={() => setStep(2)} className="px-6 py-2 bg-gray-700 text-white rounded-lg font-bold hover:bg-gray-600">Phân tích lại</button>
                             <button onClick={handleSave} className="px-8 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-500 shadow-lg shadow-green-600/20 flex items-center gap-2">
@@ -578,6 +602,37 @@ const SmartErrorImport: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Recent Imports History Section */}
+            {recentImports.length > 0 && (
+                <div className="mt-8 border-t border-gray-800 pt-6">
+                    <h3 className="text-lg font-bold text-white mb-4">Các mã lỗi vừa thêm</h3>
+                    <div className="bg-surface-dark border border-gray-800 rounded-xl overflow-hidden">
+                        <table className="w-full text-sm text-left text-gray-400">
+                             <thead className="bg-[#1a1f2e] text-xs uppercase font-bold text-gray-300">
+                                <tr>
+                                    <th className="px-6 py-3">Mã lỗi</th>
+                                    <th className="px-6 py-3">Tên lỗi</th>
+                                    <th className="px-6 py-3">Model</th>
+                                    <th className="px-6 py-3">Hãng</th>
+                                    <th className="px-6 py-3">Thời gian</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {recentImports.map((imp, idx) => (
+                                    <tr key={idx} className="border-b border-gray-800 hover:bg-white/5">
+                                        <td className="px-6 py-4 font-medium text-white">{imp.code}</td>
+                                        <td className="px-6 py-4">{imp.title}</td>
+                                        <td className="px-6 py-4">{imp.model}</td>
+                                        <td className="px-6 py-4">{imp.brand}</td>
+                                        <td className="px-6 py-4">{new Date().toLocaleTimeString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}

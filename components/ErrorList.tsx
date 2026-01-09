@@ -14,6 +14,8 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [previewError, setPreviewError] = useState<ErrorCode | null>(null);
 
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ErrorCode; direction: 'asc' | 'desc' } | null>(null);
+
   useEffect(() => {
     loadErrors();
   }, []);
@@ -30,18 +32,62 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
     }
   };
 
-  const filteredErrors = errors.filter(err => {
-    const matchSearch = searchTerm === '' ||
-      err.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      err.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      err.brand.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleSort = (key: keyof ErrorCode) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
-    const matchBrand = selectedBrand === 'all' || err.brand === selectedBrand;
+  const filteredAndSortedErrors = React.useMemo(() => {
+    let result = [...errors];
 
-    return matchSearch && matchBrand;
-  });
+    // 1. Filter
+    if (searchTerm || selectedBrand !== 'all') {
+      result = result.filter(err => {
+        const matchSearch = searchTerm === '' ||
+          err.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          err.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (err.brand && err.brand.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const uniqueBrands = Array.from(new Set(errors.map(e => e.brand)));
+        const matchBrand = selectedBrand === 'all' || err.brand === selectedBrand;
+
+        return matchSearch && matchBrand;
+      });
+    }
+
+    // 2. Sort
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const aValue = a[sortConfig.key] || '';
+        const bValue = b[sortConfig.key] || '';
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    } else {
+      // Default sort (Newest first - based on UpdatedAt or Input Order)
+      // Assuming errors come from DB in some order, or we can sort by updatedAt if available
+      // For now, reverse input order (if inputs are appended) or just keep as is?
+      // User said: "còn không thì nó cứ theo thứ tự mã lỗi mới nhất" -> Newest first.
+      // ErrorCode has 'updatedAt'.
+      result.sort((a, b) => {
+        const timeA = new Date(a.updatedAt || 0).getTime();
+        const timeB = new Date(b.updatedAt || 0).getTime();
+        return timeB - timeA; // Descending
+      });
+    }
+
+    return result;
+  }, [errors, searchTerm, selectedBrand, sortConfig]);
+
+  const uniqueBrands = Array.from(new Set(errors.map(e => e.brand))).filter(Boolean).sort();
 
   const handleDelete = async (id: string) => {
     if (confirm('Bạn có chắc muốn xóa mã lỗi này?')) {
@@ -64,6 +110,17 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
       </div>
     );
   }
+
+  const renderSortIcon = (key: keyof ErrorCode) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <span className="material-symbols-outlined text-xs text-text-muted opacity-0 group-hover:opacity-50 transition-opacity ml-1">swap_vert</span>;
+    }
+    return (
+      <span className="material-symbols-outlined text-xs text-brand-primary ml-1">
+        {sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+      </span>
+    );
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -107,7 +164,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
       {/* Results Count */}
       {searchTerm || selectedBrand !== 'all' ? (
         <div className="text-sm text-text-muted">
-          Tìm thấy <span className="text-text-primary font-mono">{filteredErrors.length}</span> kết quả
+          Tìm thấy <span className="text-text-primary font-mono">{filteredAndSortedErrors.length}</span> kết quả
         </div>
       ) : null}
 
@@ -116,21 +173,31 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
         <table className="industrial-table">
           <thead>
             <tr>
-              <th>Mã lỗi</th>
-              <th>Tiêu đề</th>
-              <th>Hãng</th>
-              <th>Model</th>
-              <th>Lượt xem</th>
+              <th onClick={() => handleSort('code')} className="cursor-pointer group select-none hover:text-white transition-colors">
+                <div className="flex items-center">Mã lỗi {renderSortIcon('code')}</div>
+              </th>
+              <th onClick={() => handleSort('title')} className="cursor-pointer group select-none hover:text-white transition-colors">
+                <div className="flex items-center">Tiêu đề {renderSortIcon('title')}</div>
+              </th>
+              <th onClick={() => handleSort('brand')} className="cursor-pointer group select-none hover:text-white transition-colors">
+                <div className="flex items-center">Hãng {renderSortIcon('brand')}</div>
+              </th>
+              <th onClick={() => handleSort('model')} className="cursor-pointer group select-none hover:text-white transition-colors">
+                <div className="flex items-center">Model {renderSortIcon('model')}</div>
+              </th>
+              <th onClick={() => handleSort('views')} className="cursor-pointer group select-none hover:text-white transition-colors">
+                <div className="flex items-center">Lượt xem {renderSortIcon('views')}</div>
+              </th>
               <th className="text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {filteredErrors.map((error) => (
+            {filteredAndSortedErrors.map((error) => (
               <tr key={error.id}>
                 <td className="font-mono text-brand-primary font-medium">{error.code}</td>
                 <td className="text-text-primary">{error.title}</td>
                 <td className="text-text-secondary">{error.brand}</td>
-                <td className="text-text-secondary text-sm">{error.model || '—'}</td>
+                <td className="text-text-secondary text-sm">{error.model === 'All Models' || error.model === 'Tất cả' ? <span className='italic opacity-50'>Tất cả model</span> : (error.model || '—')}</td>
                 <td className="font-mono text-text-muted text-sm">{error.views || 0}</td>
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
@@ -162,7 +229,7 @@ const ErrorList: React.FC<ErrorListProps> = ({ onEdit }) => {
           </tbody>
         </table>
 
-        {filteredErrors.length === 0 && (
+        {filteredAndSortedErrors.length === 0 && (
           <div className="text-center py-12 text-text-muted">
             {searchTerm || selectedBrand !== 'all'
               ? 'Không tìm thấy kết quả phù hợp'

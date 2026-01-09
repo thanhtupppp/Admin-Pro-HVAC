@@ -6,6 +6,9 @@ import '../../core/constants/app_colors.dart';
 import 'dashboard_tab.dart';
 import '../profile/profile_screen.dart'; // Import ProfileScreen
 import 'providers/home_provider.dart'; // Import HomeProvider
+import '../search/search_screen.dart';
+import '../saved/saved_screen.dart';
+import '../history/history_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   // Change to ConsumerWidget
@@ -17,9 +20,9 @@ class HomeScreen extends ConsumerWidget {
 
     final List<Widget> screens = [
       const DashboardTab(), // 1. Trang chủ
-      const Center(child: Text('Tìm kiếm')), // 2. Tìm kiếm
-      const Center(child: Text('Đã lưu')), // 3. Đã lưu
-      const Center(child: Text('Lịch sử')), // 4. Lịch sử
+      const SearchScreen(), // 2. Tìm kiếm
+      const SavedScreen(), // 3. Đã lưu
+      const HistoryScreen(), // 4. Lịch sử
       const ProfileScreen(), // 5. Cài đặt (Profile)
     ];
 

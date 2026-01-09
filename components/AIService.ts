@@ -76,7 +76,8 @@ export const analyzeFileContent = async (base64Data: string, mimeType: string, c
       "components": ["Linh kiện 1", "Linh kiện 2"],
       "steps": ["Bước 1...", "Bước 2..."],
       "tools": ["Dụng cụ 1"],
-      "hasImage": boolean
+      "hasImage": boolean,
+      "confidence": number
     }`
   };
 

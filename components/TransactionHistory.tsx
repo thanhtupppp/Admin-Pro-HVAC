@@ -27,11 +27,15 @@ const TransactionHistory: React.FC = () => {
         }
     };
 
-    const filteredTransactions = transactions.filter(tx => {
+const filteredTransactions = transactions.filter(tx => {
         const matchesStatus = filterStatus === 'all' || tx.status === filterStatus;
-        const matchesMethod = filterMethod === 'all' || tx.method === filterMethod;
-        const matchesSearch = tx.userId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            tx.planName?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesMethod = filterMethod === 'all' || tx.paymentMethod === filterMethod;
+        const matchesSearch = 
+            (tx.userId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (tx.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (tx.userEmail || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (tx.planName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (tx.transferContent || '').toLowerCase().includes(searchTerm.toLowerCase());
 
         // Date range filter
         let matchesDateRange = true;
@@ -99,6 +103,19 @@ const TransactionHistory: React.FC = () => {
                     <h1 className="text-2xl font-semibold text-text-primary mb-1">Quản lý Thanh toán</h1>
                     <p className="text-sm text-text-muted">{filteredTransactions.length}/{transactions.length} giao dịch</p>
                 </div>
+                <button
+                    onClick={async () => {
+                        if (confirm('⚠️ CẢNH BÁO: Hành động này sẽ XÓA TOÀN BỘ giao dịch và Reset tất cả user về gói Free.\n\nBạn có chắc chắn không?')) {
+                            await paymentService.resetSystemData();
+                            alert('Đã reset dữ liệu thành công! Vui lòng tải lại trang.');
+                            loadTransactions();
+                        }
+                    }}
+                    className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                    <span className="material-symbols-outlined text-lg">restart_alt</span>
+                    Reset Dữ liệu (Test)
+                </button>
             </div>
 
             {/* Stats Cards */}
@@ -121,7 +138,7 @@ const TransactionHistory: React.FC = () => {
                 <div className="flex gap-4">
                     <input
                         type="text"
-                        placeholder="Tìm kiếm giao dịch..."
+                        placeholder="Tìm người dùng, nội dung CK..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="flex-1 bg-bg-soft border border-border-base rounded-lg px-4 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
@@ -188,7 +205,7 @@ const TransactionHistory: React.FC = () => {
                             <th>Thời gian</th>
                             <th>Người dùng</th>
                             <th>Gói dịch vụ</th>
-                            <th>Phương thức</th>
+                            <th>Phương thức / Nội dung</th>
                             <th>Số tiền</th>
                             <th>Trạng thái</th>
                             <th className="text-right">Thao tác</th>
@@ -200,16 +217,29 @@ const TransactionHistory: React.FC = () => {
                                 <td className="font-mono text-text-muted text-sm whitespace-nowrap">
                                     {new Date(tx.createdAt).toLocaleString('vi-VN')}
                                 </td>
-                                <td className="font-medium text-text-primary">{tx.userId}</td>
+                                <td className="text-text-primary">
+                                    <div className="font-semibold">{tx.userName || tx.userId.substring(0, 8) + '...'}</div>
+                                    <div className="text-xs text-text-muted">{tx.userEmail}</div>
+                                    {tx.userPhone && (
+                                        <div className="text-xs text-brand-secondary">{tx.userPhone}</div>
+                                    )}
+                                </td>
                                 <td className="text-text-secondary">{tx.planName || '—'}</td>
                                 <td>
-                                    <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-medium rounded capitalize">
-                                        {tx.method === 'vietqr' ? 'VietQR' :
-                                            tx.method === 'bank_transfer' ? 'Chuyển khoản' :
-                                                tx.method === 'momo' ? 'MoMo' :
-                                                    tx.method === 'card' ? 'Thẻ' :
-                                                        tx.method || '—'}
-                                    </span>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="w-fit px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-medium rounded capitalize">
+                                            {tx.paymentMethod === 'vietqr' ? 'VietQR' :
+                                                tx.paymentMethod === 'bank_transfer' ? 'Chuyển khoản' :
+                                                    tx.paymentMethod === 'momo' ? 'MoMo' :
+                                                        tx.paymentMethod === 'card' ? 'Thẻ' :
+                                                            tx.paymentMethod || '—'}
+                                        </span>
+                                        {tx.transferContent && (
+                                            <div className="text-xs font-mono text-text-muted bg-white/5 p-1 rounded">
+                                                {tx.transferContent}
+                                            </div>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="font-mono text-brand-primary font-medium whitespace-nowrap">
                                     {tx.amount.toLocaleString('vi-VN')} VNĐ

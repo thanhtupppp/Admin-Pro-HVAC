@@ -13,7 +13,11 @@ const ServicePlans: React.FC = () => {
     const loadPlans = async () => {
         setIsLoading(true);
         try {
-            const data = await planService.getPlans();
+            let data = await planService.getPlans();
+            if (data.length === 0) {
+                await planService.initializeDefaultPlans();
+                data = await planService.getPlans();
+            }
             setPlans(data);
         } catch (error) {
             console.error('Failed to load plans', error);

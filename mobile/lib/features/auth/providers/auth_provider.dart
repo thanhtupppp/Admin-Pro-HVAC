@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/notification_service.dart';
 
 /// Auth state model
 class AuthState {
@@ -111,6 +112,12 @@ class AuthNotifier extends Notifier<AuthState> {
         userData: result.userData,
         isLoading: false,
       );
+
+      // Save FCM token
+      if (result.user != null) {
+        NotificationService().getTokenAndSave(result.user!.uid);
+      }
+
       return true;
     } else {
       state = state.copyWith(isLoading: false, error: result.error);
@@ -130,6 +137,12 @@ class AuthNotifier extends Notifier<AuthState> {
 
     if (result.success) {
       state = state.copyWith(user: result.user, isLoading: false);
+
+      // Save FCM token
+      if (result.user != null) {
+        NotificationService().getTokenAndSave(result.user!.uid);
+      }
+
       return true;
     } else {
       state = state.copyWith(isLoading: false, error: result.error);
@@ -140,6 +153,12 @@ class AuthNotifier extends Notifier<AuthState> {
   /// Sign out
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
+
+    // Clear FCM token
+    if (state.user != null) {
+      await NotificationService().clearToken(state.user!.uid);
+    }
+
     await _authService.signOut();
     state = AuthState();
   }
@@ -177,6 +196,12 @@ class AuthNotifier extends Notifier<AuthState> {
         userData: result.userData,
         isLoading: false,
       );
+
+      // Save FCM token
+      if (result.user != null) {
+        NotificationService().getTokenAndSave(result.user!.uid);
+      }
+
       return true;
     } else {
       state = state.copyWith(isLoading: false, error: result.error);
@@ -185,15 +210,21 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   /// Update Profile
-  Future<bool> updateProfile(String name) async {
+  Future<bool> updateProfile(String name, {String? phoneNumber}) async {
     state = state.copyWith(isLoading: true, error: null);
 
-    final result = await _authService.updateProfile(name: name);
+    final result = await _authService.updateProfile(
+      name: name,
+      phoneNumber: phoneNumber,
+    );
 
     if (result.success) {
       // Update local userData
       final newUserData = Map<String, dynamic>.from(state.userData ?? {});
       newUserData['name'] = name;
+      if (phoneNumber != null) {
+        newUserData['phoneNumber'] = phoneNumber;
+      }
 
       state = state.copyWith(
         user: result.user,

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { brandService } from '../services/brandService';
 import { Brand, Model } from '../types';
+import BulkImportModal from './BulkImportModal';
 
 const BrandManager: React.FC = () => {
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -9,9 +10,14 @@ const BrandManager: React.FC = () => {
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModel, setShowAddModel] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [newModel, setNewModel] = useState({
     name: '',
     type: '',
+    code: '',
+    year: new Date().getFullYear(),
+    capacity: '',
+    image: '',
     notes: ''
   });
 
@@ -75,13 +81,17 @@ const BrandManager: React.FC = () => {
         brandId: selectedBrandId,
         name: newModel.name,
         type: newModel.type || 'HVAC',
+        code: newModel.code,
+        year: newModel.year,
+        capacity: newModel.capacity,
+        image: newModel.image,
         notes: newModel.notes
       });
       // Reload models
       const updatedModels = await brandService.getModelsByBrand(selectedBrandId);
       setModels(updatedModels);
       // Reset form
-      setNewModel({ name: '', type: '', notes: '' });
+      setNewModel({ name: '', type: '', code: '', year: new Date().getFullYear(), capacity: '', image: '', notes: '' });
       setShowAddModel(false);
     } catch (error) {
       console.error('Failed to add model:', error);
@@ -108,6 +118,13 @@ const BrandManager: React.FC = () => {
           <h1 className="text-2xl font-semibold text-text-primary mb-1">Hãng & Model</h1>
           <p className="text-sm text-text-muted">Quản lý {brands.length} thương hiệu thiết bị</p>
         </div>
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="px-4 py-2 bg-surface-dark border border-border-base hover:bg-surface-hover text-text-primary rounded-lg transition-all flex items-center gap-2"
+        >
+          <span className="material-symbols-outlined text-xl">upload_file</span>
+          Import Excel
+        </button>
       </div>
 
       {!selectedBrandId ? (
@@ -127,8 +144,15 @@ const BrandManager: React.FC = () => {
               <div
                 key={brand.id}
                 onClick={() => setSelectedBrandId(brand.id)}
-                className="industrial-card cursor-pointer hover:border-brand-primary/50 transition-all"
+                className="industrial-card cursor-pointer hover:border-brand-primary/50 transition-all relative group"
               >
+                <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedBrandId(brand.id); setShowAddModel(true); }}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 z-10"
+                    title="Thêm Model nhanh"
+                >
+                    <span className="material-symbols-outlined text-sm">add</span>
+                </button>
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-2xl font-bold text-text-primary">{brand.name}</div>
                   <button
@@ -171,14 +195,14 @@ const BrandManager: React.FC = () => {
           {showAddModel && (
             <div className="bg-surface-dark border border-border-dark rounded-xl p-6">
               <h3 className="text-lg font-bold text-white mb-4">Thêm Model Mới</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Tên Model</label>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Tên Model <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={newModel.name}
                     onChange={(e) => setNewModel({ ...newModel, name: e.target.value })}
-                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:border-brand-primary focus:outline-none"
                     placeholder="VD: CU-XPU9XKH-8"
                   />
                 </div>
@@ -188,26 +212,65 @@ const BrandManager: React.FC = () => {
                     type="text"
                     value={newModel.type}
                     onChange={(e) => setNewModel({ ...newModel, type: e.target.value })}
-                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:border-brand-primary focus:outline-none"
                     placeholder="VD: Điều hòa"
                   />
                 </div>
+                 <div>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Mã sản phẩm</label>
+                  <input
+                    type="text"
+                    value={newModel.code}
+                    onChange={(e) => setNewModel({ ...newModel, code: e.target.value })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:border-brand-primary focus:outline-none"
+                    placeholder="Mã SKU/Internal"
+                  />
+                </div>
                 <div>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Năm sản xuất</label>
+                  <input
+                    type="number"
+                    value={newModel.year}
+                    onChange={(e) => setNewModel({ ...newModel, year: parseInt(e.target.value) })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:border-brand-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Công suất</label>
+                  <input
+                    type="text"
+                    value={newModel.capacity}
+                    onChange={(e) => setNewModel({ ...newModel, capacity: e.target.value })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:border-brand-primary focus:outline-none"
+                    placeholder="VD: 9000 BTU"
+                  />
+                </div>
+                 <div>
+                  <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Ảnh URL</label>
+                  <input
+                    type="text"
+                    value={newModel.image}
+                    onChange={(e) => setNewModel({ ...newModel, image: e.target.value })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:border-brand-primary focus:outline-none"
+                    placeholder="Hybrid link / URL"
+                  />
+                </div>
+                <div className="md:col-span-2 lg:col-span-3">
                   <label className="text-xs font-bold text-text-secondary uppercase block mb-2">Ghi chú</label>
                   <input
                     type="text"
                     value={newModel.notes}
                     onChange={(e) => setNewModel({ ...newModel, notes: e.target.value })}
-                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-2 text-white focus:border-brand-primary focus:outline-none"
                     placeholder="Ghi chú (tùy chọn)"
                   />
                 </div>
               </div>
-              <div className="flex gap-3 mt-4">
+              <div className="flex gap-3 mt-4 justify-end">
                 <button
                   onClick={() => {
                     setShowAddModel(false);
-                    setNewModel({ name: '', type: '', notes: '' });
+                    setNewModel({ name: '', type: '', code: '', year: new Date().getFullYear(), capacity: '', image: '', notes: '' });
                   }}
                   className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-lg transition-all"
                 >
@@ -215,7 +278,7 @@ const BrandManager: React.FC = () => {
                 </button>
                 <button
                   onClick={handleAddModel}
-                  className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/80 text-white font-bold rounded-lg transition-all"
+                  className="px-6 py-2 bg-brand-primary hover:bg-brand-primary/80 text-white font-bold rounded-lg transition-all"
                 >
                   Lưu Model
                 </button>
@@ -229,17 +292,26 @@ const BrandManager: React.FC = () => {
               <thead>
                 <tr>
                   <th>Tên Model</th>
-                  <th>Loại thiết bị</th>
-                  <th>Ghi chú</th>
+                  <th>Mã</th>
+                  <th>Loại</th>
+                  <th>Năm</th>
+                  <th>Công suất</th>
                   <th className="text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {models.length > 0 ? models.map((model) => (
                   <tr key={model.id}>
-                    <td className="font-medium text-text-primary">{model.name}</td>
+                    <td className="font-medium text-text-primary">
+                        <div className="flex items-center gap-3">
+                            {model.image && <img src={model.image} alt="" className="w-8 h-8 rounded object-cover" />}
+                            {model.name}
+                        </div>
+                    </td>
+                    <td className="text-text-secondary text-sm">{model.code || '—'}</td>
                     <td className="text-text-secondary text-sm">{model.type}</td>
-                    <td className="text-text-muted text-sm">{model.notes || '—'}</td>
+                    <td className="text-text-secondary text-sm">{model.year || '—'}</td>
+                    <td className="text-text-secondary text-sm">{model.capacity || '—'}</td>
                     <td className="text-right">
                       <button
                         onClick={() => handleDeleteModel(model.id)}
@@ -251,7 +323,7 @@ const BrandManager: React.FC = () => {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={4} className="text-center py-12 text-text-muted">
+                    <td colSpan={6} className="text-center py-12 text-text-muted">
                       Chưa có model nào
                     </td>
                   </tr>
@@ -261,6 +333,19 @@ const BrandManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      <BulkImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+            setShowImportModal(false);
+            if (selectedBrandId) {
+                 brandService.getModelsByBrand(selectedBrandId).then(setModels);
+            }
+             loadData(); // Reload brands count
+        }}
+        type="models"
+      />
     </div>
   );
 };

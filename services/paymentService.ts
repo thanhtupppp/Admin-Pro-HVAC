@@ -29,17 +29,18 @@ export const paymentService = {
                         name: 'free',
                         displayName: 'Gói Miễn phí (Free)',
                         price: 0,
-                        billingCycle: 'lifetime',
+                        billingCycle: 'monthly', // fallback valid value
                         tier: 'Free',
                         description: 'Gói cơ bản',
                         status: 'active',
                         createdAt: now,
                         updatedAt: now,
                         features: [
-                            { label: 'Tra cứu cơ bản', enabled: true },
-                            { label: 'OCR 5 lần/ngày', enabled: true },
-                            { label: 'Lịch sử cá nhân', enabled: true }
-                        ]
+                            'Tra cứu cơ bản',
+                            'OCR 5 lần/ngày',
+                            'Lịch sử cá nhân'
+                        ],
+                        limits: { maxUsers: 1, maxErrorCodes: 100, aiQuota: 5 }
                     },
                     {
                         id: 'premium',
@@ -53,12 +54,13 @@ export const paymentService = {
                         createdAt: now,
                         updatedAt: now,
                         features: [
-                            { label: 'Tra cứu Full AI', enabled: true },
-                            { label: 'OCR không giới hạn', enabled: true },
-                            { label: 'Hỗ trợ 24/7', enabled: true },
-                            { label: 'Tải tài liệu PDF', enabled: true }
+                            'Tra cứu Full AI',
+                            'OCR không giới hạn',
+                            'Hỗ trợ 24/7',
+                            'Tải tài liệu PDF'
                         ],
-                        popular: true
+                        limits: { maxUsers: 5, maxErrorCodes: 9999, aiQuota: 9999 },
+                        isPopular: true
                     }
                 ];
             }
@@ -144,14 +146,31 @@ export const paymentService = {
      */
     updateTransactionStatus: async (id: string, status: Transaction['status']): Promise<void> => {
         const docRef = doc(db, 'transactions', id);
+        
+        // 1. Get transaction to know userId and planId
+        const { getDoc } = await import('firebase/firestore');
+        const txDoc = await getDoc(docRef);
+        
+        if (!txDoc.exists()) {
+            throw new Error('Transaction not found');
+        }
+
+        const txData = txDoc.data() as Transaction;
+
+        // 2. Update status
         await updateDoc(docRef, { 
             status,
             updatedAt: new Date().toISOString()
         });
+
+        // 3. If Completed -> Activate Plan
+        if (status === 'completed' && txData.status !== 'completed') {
+            await paymentService.activatePlan(txData.userId, txData.planId);
+        }
     },
 
     /**
-     * Activate plan for user (auto-update user.plan khi admin confirm)
+     * Activate plan for user (auto-update user.plan with smart extension logic)
      */
     activatePlan: async (userId: string, planId: string): Promise<void> => {
         try {
@@ -170,34 +189,63 @@ export const paymentService = {
                 return;
             }
 
-            // 2. Get plan details to determine type
+            // 2. Get plan details
             const plan = await planService.getPlan(planId);
+            const newPlanTier: AdminUser['plan'] = plan?.tier || 'Internal';
 
-            // 3. Use plan tier & Calculate Expiration
-            const planType: AdminUser['plan'] = plan?.tier || 'Internal';
-
-            // Calculate Expiration Date
-            const now = new Date();
-            let expiresAt: Date | null = null;
+            // 3. Smart Expiration Logic
+            const now = new Date().getTime();
+            let currentExpiry = user.planExpiresAt ? new Date(user.planExpiresAt).getTime() : 0;
             
-            if (planType !== 'Free') {
-                const cycle = plan?.billingCycle || 'monthly';
-                if (cycle === 'monthly') {
-                    expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-                } else if (cycle === 'yearly') {
-                    expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+            // If current expiry is in the past, reset to now
+            if (currentExpiry < now) {
+                currentExpiry = now;
+            }
+
+            // Calculate duration
+            const cycle = plan?.billingCycle || 'monthly';
+            let duration = 0;
+            if (cycle === 'monthly') {
+                duration = 30 * 24 * 60 * 60 * 1000;
+            } else if (cycle === 'yearly') {
+                duration = 365 * 24 * 60 * 60 * 1000;
+            } else {
+                duration = 99 * 365 * 24 * 60 * 60 * 1000; // Lifetime
+            }
+
+            let newExpiresAt = new Date();
+
+            // Check hierarchy or same plan
+            // Tier values for comparison
+            const tierValue = { 'Free': 0, 'Basic': 1, 'Premium': 2, 'Enterprise': 3, 'Internal': 99 };
+            const currentTierVal = tierValue[user.plan as keyof typeof tierValue] || 0;
+            const newTierVal = tierValue[newPlanTier as keyof typeof tierValue] || 0;
+
+            if (newPlanTier !== 'Free') {
+                if (newTierVal === currentTierVal) {
+                    // SAME TIER: Extend time
+                    // New expiry = current valid expiry + duration
+                    newExpiresAt = new Date(currentExpiry + duration);
+                    console.log(`🔄 Extending ${newPlanTier} for user. Added ${duration/86400000} days.`);
+                } else if (newTierVal > currentTierVal) {
+                    // UPGRADE: Start fresh from now (or could be pro-rated but complex)
+                    // Let's explicitly start from NOW for the new higher tier
+                    newExpiresAt = new Date(now + duration);
+                    console.log(`🔼 Upgrading to ${newPlanTier}. Expires in ${duration/86400000} days.`);
                 } else {
-                    // lifetime or unknown
-                    expiresAt = new Date(now.getTime() + 99 * 365 * 24 * 60 * 60 * 1000); 
+                    // DOWNGRADE: This turns into an overwrite in this implementation
+                    // Admins usually shouldn't approve a downgrade unless intended.
+                    newExpiresAt = new Date(now + duration);
+                    console.log(`🔽 Downgrading/Changing to ${newPlanTier}.`);
                 }
             }
 
             // 4. Update user
             await userService.updateUser(user.id, { 
-                plan: planType,
+                plan: newPlanTier,
                 planId: planId,
                 planName: plan?.displayName || planId,
-                planExpiresAt: expiresAt?.toISOString() || undefined
+                planExpiresAt: newExpiresAt.toISOString()
             });
 
             // 5. Log activity
@@ -209,7 +257,7 @@ export const paymentService = {
                     userName: 'Hệ thống',
                     action: 'UPDATE',
                     target: 'User Plan',
-                    details: `Kích hoạt gói ${plan?.displayName || planId} cho ${user.email}`,
+                    details: `Kích hoạt gói ${plan?.displayName || planId} cho ${user.email} (Hết hạn: ${newExpiresAt.toLocaleDateString('vi-VN')})`,
                     timestamp: new Date().toISOString(),
                     severity: 'info'
                 });
@@ -218,11 +266,44 @@ export const paymentService = {
             }
 
             // 6. Send activation email
-            await emailService.sendPlanActivated(user, planType);
+            await emailService.sendPlanActivated(user, newPlanTier);
 
-            console.log(`✅ Activated ${planType} plan for user ${user.email}`);
         } catch (e) {
             console.error('Failed to activate plan:', e);
+            throw e;
+        }
+    },
+
+    /**
+     * RESET DATA (DEV ONLY)
+     * Clears all transactions and resets all users to Free plan.
+     */
+    resetSystemData: async (): Promise<void> => {
+        try {
+            const { deleteDoc, getDocs, collection, doc, updateDoc } = await import('firebase/firestore');
+            const { db } = await import('./firebaseConfig');
+
+            // 1. Delete all transactions
+            const txSnapshot = await getDocs(collection(db, 'transactions'));
+            const deleteTxPromises = txSnapshot.docs.map(d => deleteDoc(doc(db, 'transactions', d.id)));
+            await Promise.all(deleteTxPromises);
+            console.log(`🗑️ Deleted ${deleteTxPromises.length} transactions.`);
+
+            // 2. Reset all users to Free
+            const userSnapshot = await getDocs(collection(db, 'users'));
+            const resetUserPromises = userSnapshot.docs.map(d => 
+                updateDoc(doc(db, 'users', d.id), {
+                    plan: 'Free',
+                    planId: 'free',
+                    planName: 'Gói Miễn phí',
+                    planExpiresAt: null // Firestore can verify this deletes or sets to null
+                })
+            );
+            await Promise.all(resetUserPromises);
+            console.log(`🔄 Reset ${resetUserPromises.length} users to Free plan.`);
+
+        } catch (e) {
+            console.error('Failed to reset system data', e);
             throw e;
         }
     }

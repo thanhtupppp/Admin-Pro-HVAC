@@ -2,18 +2,106 @@
 import React from 'react';
 import { ViewType, ActivityEntry } from './types';
 
+// Menu item interface
+export interface NavItem {
+  id: ViewType;
+  label: string;
+  icon: string;
+}
+
+// Menu group interface
+export interface MenuGroup {
+  id: string;
+  label: string;
+  icon: string;
+  viewType?: ViewType; // For single items like Dashboard
+  items?: NavItem[];
+}
+
+// Grouped navigation structure
+export const MENU_GROUPS: MenuGroup[] = [
+  // Dashboard (single, always visible)
+  {
+    id: 'dashboard',
+    label: 'Tổng quan',
+    icon: 'dashboard',
+    viewType: ViewType.DASHBOARD,
+  },
+  
+  // Content Management
+  {
+    id: 'content',
+    label: 'Quản lý Nội dung',
+    icon: 'folder_open',
+    items: [
+      { id: ViewType.ERROR_LIST, label: 'Quản lý Lỗi', icon: 'bug_report' },
+      { id: ViewType.BRAND_MANAGER, label: 'Hãng & Model', icon: 'category' },
+      { id: ViewType.DOCUMENT_MANAGER, label: 'Kho Tài liệu', icon: 'folder_shared' },
+      { id: ViewType.VIDEO_CMS, label: 'Video CMS', icon: 'video_library' },
+    ],
+  },
+  
+  // AI Tools
+  {
+    id: 'ai',
+    label: 'Công cụ AI',
+    icon: 'psychology',
+    items: [
+      { id: ViewType.OCR_TOOL, label: 'Nhập liệu AI', icon: 'smart_toy' },
+      { id: ViewType.AI_OPS, label: 'AI Ops Dashboard', icon: 'analytics' },
+    ],
+  },
+  
+  // Operations
+  {
+    id: 'operations',
+    label: 'Vận hành',
+    icon: 'work',
+    items: [
+      { id: ViewType.FEEDBACK_MANAGER, label: 'Hỗ trợ & Phản hồi', icon: 'support_agent' },
+      { id: ViewType.PUSH_NOTIFICATIONS, label: 'Gửi Thông báo', icon: 'notifications_active' },
+    ],
+  },
+  
+  // User Management
+  {
+    id: 'users',
+    label: 'Quản lý Người dùng',
+    icon: 'people',
+    items: [
+      { id: ViewType.USER_MANAGER, label: 'Quản trị viên', icon: 'manage_accounts' },
+      { id: ViewType.PLAN_MANAGER, label: 'Gói dịch vụ', icon: 'workspace_premium' },
+      { id: ViewType.TRANSACTIONS, label: 'Quản lý Thanh toán', icon: 'receipt_long' },
+    ],
+  },
+  
+  // System
+  {
+    id: 'system',
+    label: 'Hệ thống',
+    icon: 'settings_applications',
+    items: [
+      { id: ViewType.ACTIVITY_LOG, label: 'Nhật ký', icon: 'history' },
+      { id: ViewType.SYSTEM_UPDATE, label: 'Cập nhật hệ thống', icon: 'system_update_alt' },
+      { id: ViewType.SETTINGS, label: 'Cài đặt', icon: 'settings' },
+    ],
+  },
+];
+
+// Legacy flat list (for backward compatibility - can remove later)
 export const NAV_ITEMS = [
   { id: ViewType.DASHBOARD, label: 'Tổng quan', icon: 'dashboard' },
   { id: ViewType.ERROR_LIST, label: 'Quản lý Lỗi', icon: 'bug_report' },
   { id: ViewType.BRAND_MANAGER, label: 'Hãng & Model', icon: 'category' },
   { id: ViewType.DOCUMENT_MANAGER, label: 'Kho Tài liệu', icon: 'folder_shared' },
   { id: ViewType.VIDEO_CMS, label: 'Video CMS', icon: 'video_library' },
-  { id: ViewType.FIELD_DISPATCH, label: 'Field Dispatch', icon: 'assignment' },
   { id: ViewType.OCR_TOOL, label: 'Nhập liệu AI', icon: 'smart_toy' },
   { id: ViewType.AI_OPS, label: 'AI Ops Dashboard', icon: 'analytics' },
   { id: ViewType.USER_MANAGER, label: 'Quản trị viên', icon: 'manage_accounts' },
   { id: ViewType.PLAN_MANAGER, label: 'Gói dịch vụ', icon: 'payments' },
   { id: ViewType.TRANSACTIONS, label: 'Quản lý Thanh toán', icon: 'receipt_long' },
+  { id: ViewType.FEEDBACK_MANAGER, label: 'Hỗ trợ & Phản hồi', icon: 'support_agent' },
+  { id: ViewType.PUSH_NOTIFICATIONS, label: 'Gửi Thông báo', icon: 'notifications_active' },
   { id: ViewType.ACTIVITY_LOG, label: 'Nhật ký', icon: 'history' },
   { id: ViewType.SYSTEM_UPDATE, label: 'Cập nhật hệ thống', icon: 'system_update_alt' },
   { id: ViewType.SETTINGS, label: 'Cài đặt', icon: 'settings' },

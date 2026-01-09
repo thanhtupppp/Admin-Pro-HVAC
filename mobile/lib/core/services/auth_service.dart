@@ -246,6 +246,7 @@ class AuthService {
   Future<AuthResult> updateProfile({
     required String name,
     String? photoURL,
+    String? phoneNumber,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -262,6 +263,7 @@ class AuthService {
       // Update Firestore
       final updateData = {'name': name};
       if (photoURL != null) updateData['photoURL'] = photoURL;
+      if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
 
       await _firestore.collection('users').doc(user.uid).update(updateData);
 

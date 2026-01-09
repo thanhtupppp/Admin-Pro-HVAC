@@ -23,6 +23,7 @@ export const db = initializeFirestore(app, {
     cacheSizeBytes: CACHE_SIZE_UNLIMITED
 });
 
+export { app };
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const analytics = getAnalytics(app);

@@ -42,8 +42,8 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Icon(
-                          Icons.arrow_back,
-                          color: AppColors.textPrimary,
+                          Icons.bookmark_rounded,
+                          color: AppColors.primary,
                           size: 20,
                         ),
                       ),

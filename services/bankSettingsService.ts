@@ -83,7 +83,6 @@ export const bankSettingsService = {
             { id: 'VAB', name: 'VietABank' },
             { id: 'NAB', name: 'NamABank' },
             { id: 'PGB', name: 'PGBank' },
-            { id: 'VIETBANK', name: 'VietBank' },
             { id: 'BAB', name: 'BacABank' },
             { id: 'PVCB', name: 'PVcomBank' },
             { id: 'Oceanbank', name: 'Oceanbank' },

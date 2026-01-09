@@ -7,7 +7,8 @@ import 'providers/dashboard_provider.dart';
 import 'widgets/dashboard_header.dart';
 import 'package:go_router/go_router.dart';
 import 'widgets/dashboard_search_bar.dart';
-import 'widgets/category_filter.dart';
+import 'widgets/quick_action_grid.dart';
+import 'widgets/stats_card.dart';
 import 'widgets/recent_error_card.dart';
 import 'widgets/common_error_item.dart';
 
@@ -22,7 +23,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
   @override
   void initState() {
     super.initState();
-    // Data is managed from web admin, no need to seed
   }
 
   Color _getColorForBrand(String brand) {
@@ -55,31 +55,36 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Header
-              DashboardHeader(photoUrl: photoUrl),
-
-              const Gap(24),
-
-              // 2. Search Bar
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: DashboardSearchBar(),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // 1. Header & Search & Stats
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DashboardHeader(photoUrl: photoUrl),
+                  const Gap(24),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: DashboardSearchBar(),
+                  ),
+                  const Gap(24),
+                  const QuickActionGrid(),
+                  const Gap(24),
+                  const DayStatsCard(),
+                  const Gap(32),
+                ],
               ),
+            ),
 
-              const Gap(24),
-
-              // 3. Category Filter
-              const CategoryFilter(),
-
-              const Gap(24),
-
-              // 4. Recent Errors Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+            // 2. Recent Errors Header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -93,7 +98,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       ),
                     ),
                     Text(
-                      'Xóa lịch sử',
+                      'Xem tất cả',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -103,9 +108,11 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                   ],
                 ),
               ),
-              const Gap(12),
+            ),
 
-              SizedBox(
+            // 3. Recent Errors List (Horizontal)
+            SliverToBoxAdapter(
+              child: SizedBox(
                 height: 220,
                 child: recentErrorsAsync.when(
                   data: (errors) {
@@ -145,12 +152,17 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                   error: (err, stack) => Center(child: Text('Lỗi: $err')),
                 ),
               ),
+            ),
 
-              const Gap(24),
+            const SliverGap(32),
 
-              // 5. Common Errors Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+            // 4. Common Errors Header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -163,69 +175,81 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    Text(
-                      'Xem tất cả',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
+                    InkWell(
+                      onTap: () => context.push('/search-lookup'),
+                      child: Text(
+                        'Xem tất cả',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Gap(12),
+            ),
 
-              commonErrorsAsync.when(
-                data: (errors) {
-                  if (errors.isEmpty) {
-                    return const Padding(
+            // 5. Common Errors List (Vertical)
+            commonErrorsAsync.when(
+              data: (errors) {
+                if (errors.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
                       padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'Chưa có dữ liệu lỗi thường gặp',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      child: Center(
+                        child: Text(
+                          'Chưa có dữ liệu lỗi thường gặp',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
                       ),
-                    );
-                  }
-                  return ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: errors.length,
-                    separatorBuilder: (_, _) => const Gap(12),
-                    itemBuilder: (context, index) {
+                    ),
+                  );
+                }
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
                       final item = errors[index];
-                      return GestureDetector(
-                        onTap: () =>
-                            context.push('/home/error-detail', extra: item),
-                        child: CommonErrorItem(
-                          code: item.code,
-                          title: item.title,
-                          brand: item.brand,
-                          desc: item.description ?? '',
-                          color: _getColorForBrand(item.brand),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: GestureDetector(
+                          onTap: () =>
+                              context.push('/home/error-detail', extra: item),
+                          child: CommonErrorItem(
+                            code: item.code,
+                            title: item.title,
+                            brand: item.brand,
+                            desc: item.description ?? '',
+                            color: _getColorForBrand(item.brand),
+                          ),
                         ),
                       );
-                    },
-                  );
-                },
-                loading: () => const Center(
+                    }, childCount: errors.length),
+                  ),
+                );
+              },
+              loading: () => const SliverToBoxAdapter(
+                child: Center(
                   child: Padding(
                     padding: EdgeInsets.all(20),
                     child: CircularProgressIndicator(),
                   ),
                 ),
-                error: (err, stack) => Center(
+              ),
+              error: (err, stack) => SliverToBoxAdapter(
+                child: Center(
                   child: Padding(
                     padding: EdgeInsets.all(20),
                     child: Text('Lỗi: $err'),
                   ),
                 ),
               ),
+            ),
 
-              const Gap(80), // Bottom padding
-            ],
-          ),
+            const SliverGap(80),
+          ],
         ),
       ),
     );

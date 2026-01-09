@@ -1,10 +1,14 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/config/firebase_options.dart';
 import 'core/services/onboarding_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/splash/welcome_screen.dart';
 import 'features/splash/onboarding_screen.dart';
@@ -16,7 +20,7 @@ import 'features/profile/edit_profile_screen.dart';
 import 'features/profile/user_info_screen.dart';
 import 'features/search/search_screen.dart';
 import 'features/profile/change_password_screen.dart';
-import 'features/notification/notification_screen.dart';
+// import 'features/notification/notification_screen.dart';
 import 'features/layout/main_wrapper.dart';
 import 'features/saved/saved_screen.dart';
 import 'features/history/history_screen.dart';
@@ -27,10 +31,41 @@ import 'features/subscription/presentation/subscription_screen.dart';
 import 'features/subscription/presentation/payment_screen.dart';
 import 'features/subscription/presentation/transaction_history_screen.dart';
 import 'features/subscription/data/plan_model.dart';
+import 'features/support/presentation/support_list_screen.dart';
+import 'features/support/presentation/create_feedback_screen.dart';
+import 'features/support/presentation/support_detail_screen.dart';
+import 'features/support/data/feedback_model.dart';
+import 'features/notifications/presentation/notifications_screen.dart';
+
+/// Background message handler (must be top-level function)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('📨 Background message: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Firebase Crashlytics
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+  // Catch async errors not handled by Flutter
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+
+  // Initialize FCM background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Initialize notification service
+  await NotificationService().initialize();
+
+  // Set navigator key for notification navigation
+  NotificationService().setNavigatorKey(_rootNavigatorKey);
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -128,7 +163,7 @@ final _router = GoRouter(
               routes: [
                 GoRoute(
                   path: 'notifications',
-                  builder: (context, state) => const NotificationScreen(),
+                  builder: (context, state) => const NotificationsScreen(),
                 ),
                 GoRoute(
                   path: 'error-detail',
@@ -233,6 +268,26 @@ final _router = GoRouter(
                           PaymentScreen(plan: state.extra as PlanModel),
                     ),
                   ],
+                ),
+                GoRoute(
+                  path: 'support',
+                  builder: (context, state) => const SupportListScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'create',
+                      builder: (context, state) => const CreateFeedbackScreen(),
+                    ),
+                    GoRoute(
+                      path: 'detail',
+                      builder: (context, state) => SupportDetailScreen(
+                        feedback: state.extra as FeedbackModel,
+                      ),
+                    ),
+                  ],
+                ),
+                GoRoute(
+                  path: 'notifications',
+                  builder: (context, state) => const NotificationsScreen(),
                 ),
               ],
             ),

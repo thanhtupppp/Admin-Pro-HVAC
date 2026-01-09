@@ -17,385 +17,488 @@ class ProfileScreen extends ConsumerWidget {
     final displayName = user?.displayName ?? userData?['name'] ?? 'Người dùng';
     final email = user?.email ?? userData?['email'] ?? 'Chưa cập nhật email';
     final photoUrl = user?.photoURL ?? userData?['photoURL'];
+    // Update logic to verify any paid plan
+    final plan = userData?['plan'];
+    final isPremium = [
+      'Basic',
+      'Premium',
+      'Enterprise',
+      'Internal',
+    ].contains(plan);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const Gap(10),
-              // 1. Profile Header
-              Center(
-                child: Column(
-                  children: [
-                    Stack(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.surface,
-                              width: 4,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                            image: photoUrl != null
-                                ? DecorationImage(
-                                    image: NetworkImage(photoUrl),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                            color: AppColors.surface,
-                          ),
-                          child: photoUrl == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: AppColors.textSecondary,
-                                )
-                              : null,
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.background,
-                                width: 2,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Gap(16),
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const Gap(4),
-                    Text(
-                      email,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Gap(12),
-                    // Plan Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: (userData?['plan'] == 'Premium')
-                            ? AppColors.primary.withValues(alpha: 0.1)
-                            : AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: (userData?['plan'] == 'Premium')
-                              ? AppColors.primary
-                              : Colors.transparent,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            (userData?['plan'] == 'Premium')
-                                ? Icons.diamond
-                                : Icons.person_outline,
-                            size: 14,
-                            color: (userData?['plan'] == 'Premium')
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                          ),
-                          const Gap(6),
-                          Builder(
-                            builder: (context) {
-                              final expiresAtStr = userData?['planExpiresAt']
-                                  ?.toString();
-                              final planType =
-                                  userData?['plan']?.toString() ?? 'Free';
-                              final planName = userData?['planName']
-                                  ?.toString();
-
-                              String displayText =
-                                  'Gói: ${planName ?? planType}';
-                              bool isExpired = false;
-
-                              if (planType != 'Free') {
-                                if (expiresAtStr != null) {
-                                  try {
-                                    final expiry = DateTime.parse(expiresAtStr);
-                                    final now = DateTime.now();
-                                    final remains = expiry
-                                        .difference(now)
-                                        .inDays;
-
-                                    if (remains < 0) {
-                                      displayText += ' (Hết hạn)';
-                                      isExpired = true;
-                                    } else {
-                                      displayText += ' (Còn $remains ngày)';
-                                    }
-                                  } catch (e) {
-                                    debugPrint('Error parsing expiry: $e');
-                                    displayText += ' (Lỗi định dạng)';
-                                  }
-                                } else {
-                                  // No expiration date set for a non-free plan
-                                  displayText += ' (Vĩnh viễn)';
-                                }
-                              }
-
-                              return Text(
-                                displayText,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: isExpired
-                                      ? Colors.red
-                                      : (planType == 'Premium'
-                                            ? AppColors.primary
-                                            : AppColors.textSecondary),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Gap(16),
-                    ElevatedButton(
-                      onPressed: () {
-                        context.push('/settings/edit-profile');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 10,
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text('Chỉnh sửa hồ sơ'),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Gap(32),
-
-              // 2. Menu Options
-              _buildSectionTitle('Tài khoản'),
-              _buildMenuItem(
-                icon: Icons.person_outline,
-                title: 'Thông tin cá nhân',
-                onTap: () {
-                  context.push('/settings/user-info');
-                },
-              ),
-              _buildMenuItem(
-                icon: Icons.diamond_outlined,
-                title: 'Nâng cấp gói VIP',
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.primary,
-                ),
-                onTap: () {
-                  context.push('/settings/subscription');
-                },
-              ),
-              _buildMenuItem(
-                icon: Icons.history_edu_outlined,
-                title: 'Lịch sử thanh toán',
-                onTap: () {
-                  context.push('/settings/transactions');
-                },
-              ),
-              _buildMenuItem(
-                icon: Icons.notifications_none,
-                title: 'Thông báo',
-                onTap: () {
-                  context.push('/home/notifications');
-                },
-              ),
-              _buildMenuItem(
-                icon: Icons.lock_outline,
-                title: 'Đổi mật khẩu',
-                onTap: () {
-                  context.push('/settings/change-password');
-                },
-              ),
-
-              const Gap(24),
-              _buildSectionTitle('Ứng dụng'),
-              _buildMenuItem(
-                icon: Icons.language,
-                title: 'Ngôn ngữ',
-                trailing: const Text(
-                  'Tiếng Việt',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // 1. Pro Header
+          SliverAppBar(
+            backgroundColor: AppColors.background,
+            expandedHeight: 280,
+            floating: false,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.2),
+                      AppColors.background,
+                    ],
                   ),
                 ),
-                onTap: () {},
-              ),
-              _buildMenuItem(
-                icon: Icons.dark_mode_outlined,
-                title: 'Giao diện',
-                trailing: const Text(
-                  'Tối',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
+                child: SafeArea(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildAvatar(photoUrl, isPremium),
+                      const Gap(16),
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const Gap(4),
+                      Text(
+                        email,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const Gap(12),
+                      _buildPremiumBadge(userDat: userData),
+                    ],
                   ),
                 ),
-                onTap: () {},
               ),
-              _buildMenuItem(
-                icon: Icons.help_outline,
-                title: 'Trợ giúp & Phản hồi',
-                onTap: () {},
-              ),
+            ),
+          ),
 
-              const Gap(32),
+          // 2. Stats Section (Optional/Decorative for now)
+          SliverToBoxAdapter(child: _buildStatsRow()),
 
-              // 3. Logout Button
-              InkWell(
-                onTap: () async {
-                  await ref.read(authProvider.notifier).signOut();
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.error.withValues(alpha: 0.2),
-                    ),
+          // 3. Settings Groups
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildSectionLabel('TÀI KHOẢN'),
+                _buildSettingsGroup([
+                  _SettingsItem(
+                    icon: Icons.person_outline_rounded,
+                    title: 'Thông tin cá nhân',
+                    color: Colors.blue,
+                    onTap: () => context.push('/settings/user-info'),
                   ),
-                  child: const Center(
-                    child: Text(
-                      'Đăng xuất',
+                  _SettingsItem(
+                    icon: Icons.diamond_outlined,
+                    title: 'Nâng cấp gói VIP',
+                    color: Colors.purple,
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.primary,
+                    ),
+                    onTap: () => context.push('/settings/subscription'),
+                  ),
+                  _SettingsItem(
+                    icon: Icons.history_edu_rounded,
+                    title: 'Lịch sử thanh toán',
+                    color: Colors.green,
+                    onTap: () => context.push('/settings/transactions'),
+                  ),
+                ]),
+                const Gap(24),
+                _buildSectionLabel('ỨNG DỤNG'),
+                _buildSettingsGroup([
+                  _SettingsItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Thông báo',
+                    color: Colors.orange,
+                    onTap: () => context.push('/settings/notifications'),
+                  ),
+                  _SettingsItem(
+                    icon: Icons.lock_outline_rounded,
+                    title: 'Đổi mật khẩu',
+                    color: Colors.redAccent,
+                    onTap: () => context.push('/settings/change-password'),
+                  ),
+                  _SettingsItem(
+                    icon: Icons.language_rounded,
+                    title: 'Ngôn ngữ',
+                    color: Colors.teal,
+                    trailing: const Text(
+                      'Tiếng Việt',
                       style: TextStyle(
-                        color: AppColors.error,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
                       ),
+                    ),
+                    onTap: () {},
+                  ),
+                  _SettingsItem(
+                    icon: Icons.dark_mode_outlined,
+                    title: 'Giao diện',
+                    color: Colors.indigo,
+                    trailing: const Text(
+                      'Tối',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    onTap: () {},
+                  ),
+                ]),
+                const Gap(24),
+                _buildSectionLabel('KHÁC'),
+                _buildSettingsGroup([
+                  _SettingsItem(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Trợ giúp & Phản hồi',
+                    color: Colors.cyan,
+                    onTap: () => context.push('/settings/support'),
+                  ),
+                  _SettingsItem(
+                    icon: Icons.logout_rounded,
+                    title: 'Đăng xuất',
+                    color: Colors.grey,
+                    onTap: () async {
+                      await ref.read(authProvider.notifier).signOut();
+                    },
+                  ),
+                ]),
+                const Gap(40),
+                const Center(
+                  child: Text(
+                    'Admin Pro HVAC v1.0.0',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-              ),
+                const Gap(100),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              const Gap(20),
-              const Center(
-                child: Text(
-                  'Phiên bản 1.0.0',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
+  Widget _buildAvatar(String? photoUrl, bool isPremium) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Glow effect for premium
+        if (isPremium)
+          Container(
+            width: 110,
+            height: 110,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.5),
+                  blurRadius: 20,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+          ),
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isPremium ? AppColors.primary : AppColors.surface,
+              width: 3,
+            ),
+            image: photoUrl != null
+                ? DecorationImage(
+                    image: NetworkImage(photoUrl),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+            color: AppColors.surface,
+          ),
+          child: photoUrl == null
+              ? const Icon(
+                  Icons.person,
+                  size: 50,
+                  color: AppColors.textSecondary,
+                )
+              : null,
+        ),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.background, width: 2),
+            ),
+            child: const Icon(
+              Icons.camera_alt_rounded,
+              size: 14,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPremiumBadge({required Map<String, dynamic>? userDat}) {
+    // 1. Determine Plan Name
+    // Firestore stores 'plan' as 'Basic', 'Premium', 'Enterprise', or 'Free'
+    final String rawPlan = userDat?['plan'] ?? 'Free';
+    // Removed unused planId variable
+
+    // Mapping for display
+    String displayName = 'Thành viên miễn phí';
+    bool isPaidPlan = false;
+    Color badgeColor = AppColors.textSecondary;
+    IconData badgeIcon = Icons.person_outline_rounded;
+
+    if (['Basic', 'Premium', 'Enterprise', 'Internal'].contains(rawPlan)) {
+      isPaidPlan = true;
+      displayName = 'Thành viên $rawPlan';
+
+      // Custom styling per tier
+      if (rawPlan == 'Enterprise') {
+        displayName = 'Doanh nghiệp (Enterprise)';
+        badgeColor = const Color(0xFF9C27B0); // Purple
+        badgeIcon = Icons.stars_rounded;
+      } else if (rawPlan == 'Premium') {
+        displayName = 'Thành viên PRO';
+        badgeColor = AppColors.primary;
+        badgeIcon = Icons.verified_rounded;
+      } else if (rawPlan == 'Basic') {
+        displayName = 'Thành viên Cơ bản';
+        badgeColor = Colors.blue;
+        badgeIcon = Icons.check_circle_outline_rounded;
+      } else {
+        // Internal/Other
+        badgeColor = Colors.orange;
+        badgeIcon = Icons.shield_rounded;
+      }
+    } else {
+      // Free or unknown
+      isPaidPlan = false;
+    }
+
+    // 2. Format Expiry
+    final expiresAt = userDat?['planExpiresAt'];
+    String? formattedExpiry;
+
+    if (expiresAt != null) {
+      try {
+        final date = DateTime.parse(expiresAt);
+        // Helper to format dd/MM/yyyy
+        formattedExpiry =
+            "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
+      } catch (_) {}
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isPaidPlan
+            ? badgeColor.withValues(alpha: 0.15)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPaidPlan
+              ? badgeColor.withValues(alpha: 0.3)
+              : Colors.white10,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                badgeIcon,
+                size: 16,
+                color: isPaidPlan ? badgeColor : AppColors.textSecondary,
+              ),
+              const Gap(8),
+              Text(
+                displayName,
+                style: TextStyle(
+                  color: isPaidPlan ? badgeColor : AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
               ),
-              const Gap(80),
             ],
           ),
-        ),
+          if (isPaidPlan && formattedExpiry != null) ...[
+            const Gap(4),
+            Text(
+              'Hết hạn: $formattedExpiry',
+              style: TextStyle(
+                color: AppColors.textSecondary.withValues(alpha: 0.8),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildStatsRow() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 4),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(child: _buildStatItem('Mã đã lưu', '12', Icons.bookmark)),
+          const Gap(12),
+          Expanded(
+            child: _buildStatItem('Đang chờ', '0', Icons.hourglass_empty),
           ),
-        ),
+          const Gap(12),
+          Expanded(
+            child: _buildStatItem('Tháng này', '24', Icons.calendar_today),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    Widget? trailing,
-  }) {
+  Widget _buildStatItem(String label, String value, IconData icon) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.textSecondary.withValues(alpha: 0.1),
-        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
-      child: ListTile(
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: AppColors.textPrimary, size: 20),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w500,
-            fontSize: 15,
-          ),
-        ),
-        trailing:
-            trailing ??
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondary,
-              size: 20,
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: AppColors.textSecondary),
+          const Gap(8),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
+          ),
+          const Gap(4),
+          Text(
+            label,
+            style: TextStyle(
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, bottom: 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: AppColors.textSecondary.withValues(alpha: 0.7),
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsGroup(List<_SettingsItem> items) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        children: items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          final isLast = index == items.length - 1;
+
+          return Column(
+            children: [
+              _buildSettingsTile(item),
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  indent: 60,
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile(_SettingsItem item) {
+    return ListTile(
+      onTap: item.onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: item.color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(item.icon, color: item.color, size: 20),
+      ),
+      title: Text(
+        item.title,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      trailing:
+          item.trailing ??
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textSecondary,
+            size: 18,
+          ),
+    );
+  }
+}
+
+class _SettingsItem {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+  final Widget? trailing;
+
+  _SettingsItem({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+    this.trailing,
+  });
 }

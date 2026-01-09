@@ -51,7 +51,13 @@ service cloud.firestore {
       allow update: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId && 
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'plan', 'planExpiresAt']));
       allow delete: if isSuperAdmin();
+      
+      // NOTIFICATIONS Subcollection
+      match /notifications/{notificationId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
+
 
     // BRANDS & MODELS Collection
     match /brands/{brandId} {
@@ -82,6 +88,17 @@ service cloud.firestore {
       allow read: if isStaff();
       allow create: if isAuthenticated();
       allow update, delete: if false;
+    }
+    
+    // FEEDBACKS Collection (Help & Support)
+    match /feedbacks/{feedbackId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        isSuperAdmin()
+      );
+      allow update: if isSuperAdmin(); // Only admins can reply
+      allow delete: if isSuperAdmin();
     }
     
     // SETTINGS Collection

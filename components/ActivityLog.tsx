@@ -217,7 +217,7 @@ const ActivityLog: React.FC = () => {
                 </td>
                 <td className="text-text-secondary text-sm">{log.target || 'N/A'}</td>
                 <td className="text-text-secondary text-sm max-w-xs truncate">{log.details}</td>
-                <td className="font-mono text-text-muted text-xs">{(log as any).ipAddress || 'Unknown'}</td>
+                <td className="font-mono text-text-muted text-xs">{log.ipAddress || 'Unknown'}</td>
                 <td>
                   {(log as any).success !== undefined && (
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${(log as any).success ? 'bg-status-ok/10 text-status-ok' : 'bg-status-error/10 text-status-error'

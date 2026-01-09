@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../home/models/error_code_model.dart';
 import 'providers/history_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -14,36 +14,39 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  String _searchQuery = '';
+  Future<void> _deleteItem(String errorId) async {
+    await ref.read(historyNotifierProvider.notifier).removeItem(errorId);
+  }
 
-  Map<String, List<HistoryDisplayItem>> _groupHistoryItems(
-    List<HistoryDisplayItem> items,
-  ) {
-    final Map<String, List<HistoryDisplayItem>> grouped = {};
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
+  Future<void> _clearAll() async {
+    final shouldClear = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa lịch sử?'),
+        content: const Text(
+          'Bạn có chắc chắn muốn xóa toàn bộ lịch sử xem không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(false),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => context.pop(true),
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: AppColors.surface,
+      ),
+    );
 
-    for (var item in items) {
-      final date = item.entry.timestamp;
-      final dateOnly = DateTime(date.year, date.month, date.day);
-
-      String key;
-      if (dateOnly == today) {
-        key = 'HÔM NAY';
-      } else if (dateOnly == yesterday) {
-        key = 'HÔM QUA';
-      } else {
-        // Format: dd/MM/yyyy
-        key = DateFormat('dd/MM/yyyy').format(date);
-      }
-
-      if (!grouped.containsKey(key)) {
-        grouped[key] = [];
-      }
-      grouped[key]!.add(item);
+    if (shouldClear == true) {
+      ref.read(historyNotifierProvider.notifier).clearHistory();
     }
-    return grouped;
   }
 
   @override
@@ -52,283 +55,234 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 1. Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Lịch sử tìm kiếm',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      _showClearHistoryDialog(context);
-                    },
-                    child: const Text(
-                      'Xóa',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 2. Search
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.textSecondary.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: TextField(
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  onChanged: (val) {
-                    setState(() {
-                      _searchQuery = val;
-                    });
-                  },
-                  decoration: const InputDecoration(
-                    icon: Icon(Icons.search, color: AppColors.textSecondary),
-                    border: InputBorder.none,
-                    hintText: 'Tìm theo mã lỗi, hãng hoặc model...',
-                    hintStyle: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-              ),
-            ),
-            const Gap(16),
-
-            // 3. List
-            Expanded(
-              child: historyAsync.when(
-                data: (items) {
-                  // Local filtered
-                  var filteredItems = items;
-                  if (_searchQuery.isNotEmpty) {
-                    filteredItems = filteredItems.where((item) {
-                      final e = item.errorCode;
-                      final query = _searchQuery.toLowerCase();
-                      return e.code.toLowerCase().contains(query) ||
-                          e.brand.toLowerCase().contains(query) ||
-                          e.model.toLowerCase().contains(query);
-                    }).toList();
-                  }
-
-                  if (filteredItems.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.history,
-                            size: 64,
-                            color: AppColors.textSecondary.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                          const Gap(16),
-                          Text(
-                            items.isEmpty
-                                ? 'Chưa có lịch sử tìm kiếm'
-                                : 'Không tìm thấy kết quả',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final groupedItems = _groupHistoryItems(filteredItems);
-
-                  return ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: groupedItems.entries.map((entry) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 8,
-                              horizontal: 4,
-                            ),
-                            child: Text(
-                              entry.key,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          ...entry.value.map((item) => _buildHistoryCard(item)),
-                          const Gap(16),
-                        ],
-                      );
-                    }).toList(),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Lỗi: $err')),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showClearHistoryDialog(BuildContext context) async {
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
         title: const Text(
-          'Xóa lịch sử?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: const Text(
-          'Bạn có chắc muốn xóa toàn bộ lịch sử tìm kiếm không?',
-          style: TextStyle(color: AppColors.textSecondary),
+          'Lịch sử xem',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+          historyAsync.when(
+            data: (items) => items.isNotEmpty
+                ? TextButton(
+                    onPressed: _clearAll,
+                    child: const Text(
+                      'Xóa tất cả',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
           ),
-          TextButton(
-            onPressed: () {
-              ref.read(historyNotifierProvider.notifier).clearHistory();
-              Navigator.pop(context);
-            },
-            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
-          ),
+          const Gap(8),
         ],
+      ),
+      body: historyAsync.when(
+        data: (items) {
+          if (items.isEmpty) return _buildEmptyState();
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_, _) => const Gap(12),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return Dismissible(
+                key: Key('history_${item.entry.errorId}'),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (_) async {
+                  return await showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Xóa khỏi lịch sử?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => context.pop(false),
+                          child: const Text(
+                            'Hủy',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.pop(true),
+                          child: const Text(
+                            'Xóa',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      backgroundColor: AppColors.surface,
+                    ),
+                  );
+                },
+                onDismissed: (_) => _deleteItem(item.entry.errorId),
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
+                ),
+                child: _buildHistoryItem(item.errorCode, item.entry.timestamp),
+              );
+            },
+          );
+        },
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (err, stack) => Center(
+          child: Text(
+            'Lỗi tải lịch sử',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildHistoryCard(HistoryDisplayItem item) {
-    final e = item.errorCode;
-    final timeStr = DateFormat('HH:mm').format(item.entry.timestamp);
-
+  Widget _buildHistoryItem(ErrorCode item, DateTime timestamp) {
     return GestureDetector(
       onTap: () {
-        context.push('/history/error-detail', extra: e);
+        context.push('/search-lookup/error-detail', extra: item);
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppColors.textSecondary.withValues(alpha: 0.1),
+            color: AppColors.textSecondary.withValues(alpha: 0.05),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            // Icon Box
             Container(
-              width: 48,
-              height: 48,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.background,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.history,
-                color: AppColors.primary,
-                size: 24,
+              child: Center(
+                child: Text(
+                  item.code,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
             const Gap(16),
-
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    item.title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Gap(4),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        e.code,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          '${item.brand} • ${item.model}',
+                          style: TextStyle(
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.7,
+                            ),
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
-                        timeStr,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                        _formatTime(timestamp),
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          fontSize: 11,
                         ),
                       ),
                     ],
                   ),
-                  const Gap(4),
-                  Text(
-                    e.title,
-                    style: TextStyle(
-                      color: AppColors.textPrimary.withValues(alpha: 0.9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Gap(2),
-                  Text(
-                    '${e.brand} • ${e.model}',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
               ),
             ),
-            const Gap(8),
-            IconButton(
-              icon: const Icon(
-                Icons.close,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-              onPressed: () {
-                ref
-                    .read(historyNotifierProvider.notifier)
-                    .removeItem(item.entry.errorId);
-              },
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: AppColors.textSecondary,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inSeconds < 60) return 'Vừa xem';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+    return '${time.day}/${time.month}';
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.history_toggle_off_rounded,
+            size: 64,
+            color: AppColors.textSecondary.withValues(alpha: 0.3),
+          ),
+          const Gap(16),
+          const Text(
+            'Chưa có lịch sử xem',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
