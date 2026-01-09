@@ -3,6 +3,7 @@ import { systemService, SystemSettings } from '../services/systemService';
 import VietQRSettings from './VietQRSettings';
 import BackupManager from './BackupManager';
 import EmailSettings from './EmailSettings';
+import AdsSettings from './AdsSettings';
 import { maskApiKey } from '../utils/validation';
 
 interface SettingsProps {
@@ -102,6 +103,7 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
     { id: 'ai', label: 'Cấu hình AI', icon: 'psychology' },
     { id: 'payment', label: 'Thanh toán VietQR', icon: 'qr_code' },
     { id: 'email', label: 'Email Service', icon: 'mail' },
+    { id: 'ads', label: 'Quảng cáo', icon: 'ad_units' },
     { id: 'notification', label: 'Thông báo', icon: 'notifications' },
     { id: 'security', label: 'Bảo mật', icon: 'security' },
     { id: 'backup', label: 'Sao lưu', icon: 'cloud_sync' },
@@ -315,6 +317,10 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <EmailSettings />
             </div>
+          )}
+
+          {activeSection === 'ads' && (
+             <AdsSettings />
           )}
         </div>
       </div>

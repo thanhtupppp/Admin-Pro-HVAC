@@ -7,12 +7,42 @@ import '../data/plan_model.dart';
 import '../data/plan_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 
-class SubscriptionScreen extends ConsumerWidget {
+class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final plansAsyncValue = ref.watch(plansProvider);
+  ConsumerState<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
+  final PlanRepository _planRepository = PlanRepository();
+  List<PlanModel> _plans = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPlans();
+  }
+
+  Future<void> _fetchPlans() async {
+    try {
+      final fetchedPlans = await _planRepository.getAllPlans();
+      setState(() {
+        _plans = fetchedPlans;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Không thể tải gói dịch vụ';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final userPlanId = authState.userData?['planId']?.toString();
     final userPlanName = authState.userData?['plan']?.toString() ?? 'Free';
@@ -62,82 +92,97 @@ class SubscriptionScreen extends ConsumerWidget {
                 ),
 
                 Expanded(
-                  child: plansAsyncValue.when(
-                    data: (plans) {
-                      if (plans.isEmpty) {
-                        return _buildEmptyState();
-                      }
-
-                      return SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Nâng cấp Premium',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const Gap(8),
-                            Text(
-                              'Mở khóa toàn bộ tính năng,\nkhông giới hạn.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.8,
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _errorMessage != null
+                      ? _buildErrorState(_errorMessage!)
+                      : _plans.isEmpty
+                      ? _buildEmptyState()
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'Nâng cấp Premium',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
                                 ),
-                                height: 1.5,
                               ),
-                            ),
-                            const Gap(32),
-
-                            ...plans.map((plan) {
-                              final isCurrent =
-                                  plan.id == userPlanId ||
-                                  (userPlanId == null &&
-                                      plan.name == userPlanName) ||
-                                  plan.tier ==
-                                      userPlanName; // Check against tier as well (e.g. Enterprise)
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 24),
-                                child: _buildPlanCard(context, plan, isCurrent),
-                              );
-                            }),
-
-                            const Gap(20),
-                            Text(
-                              'Bạn có thể hủy gói bất cứ lúc nào trong cài đặt.',
-                              style: TextStyle(
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.5,
+                              const Gap(8),
+                              Text(
+                                'Mở khóa toàn bộ tính năng,\nkhông giới hạn.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                  height: 1.5,
                                 ),
-                                fontSize: 12,
                               ),
-                            ),
-                          ],
+                              const Gap(32),
+
+                              ..._plans.map((plan) {
+                                final isCurrent =
+                                    plan.id == userPlanId ||
+                                    (userPlanId == null &&
+                                        plan.name == userPlanName) ||
+                                    plan.tier ==
+                                        userPlanName; // Check against tier as well (e.g. Enterprise)
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 24),
+                                  child: _buildPlanCard(
+                                    context,
+                                    plan,
+                                    isCurrent,
+                                  ),
+                                );
+                              }),
+
+                              const Gap(8),
+                              Text(
+                                'Bạn có thể hủy bất kỳ lúc nào',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                    loading: () => const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    error: (err, stack) => Center(
-                      child: Text(
-                        'Không thể tải gói dịch vụ',
-                        style: TextStyle(
-                          color: AppColors.error.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade400, size: 60),
+          const Gap(16),
+          Text(
+            message,
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+          ),
+          const Gap(24),
+          ElevatedButton.icon(
+            onPressed: _fetchPlans,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
             ),
           ),
         ],

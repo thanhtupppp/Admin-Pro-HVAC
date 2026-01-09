@@ -14,6 +14,80 @@ class PlanLimits {
   }
 }
 
+class PlanQuotas {
+  final int? dailyErrorSearchLimit; // null = unlimited
+  final bool hasAdsRewards; // Can earn quota from ads
+
+  const PlanQuotas({this.dailyErrorSearchLimit, this.hasAdsRewards = false});
+
+  factory PlanQuotas.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const PlanQuotas(dailyErrorSearchLimit: 5, hasAdsRewards: true);
+    }
+
+    return PlanQuotas(
+      dailyErrorSearchLimit: json['dailyErrorSearchLimit'],
+      hasAdsRewards: json['hasAdsRewards'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'dailyErrorSearchLimit': dailyErrorSearchLimit,
+      'hasAdsRewards': hasAdsRewards,
+    };
+  }
+
+  bool get isUnlimited => dailyErrorSearchLimit == null;
+}
+
+class PlanPermissions {
+  final bool canSearchErrors;
+  final bool canUseTools; // Thước đo, gas, etc.
+  final bool canExportData;
+  final bool hasAdsFree; // Không hiện ads
+  final bool hasPrioritySupport;
+
+  const PlanPermissions({
+    this.canSearchErrors = true,
+    this.canUseTools = false,
+    this.canExportData = false,
+    this.hasAdsFree = false,
+    this.hasPrioritySupport = false,
+  });
+
+  factory PlanPermissions.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      // Default Free plan permissions
+      return const PlanPermissions(
+        canSearchErrors: true,
+        canUseTools: false,
+        canExportData: false,
+        hasAdsFree: false,
+        hasPrioritySupport: false,
+      );
+    }
+
+    return PlanPermissions(
+      canSearchErrors: json['canSearchErrors'] ?? true,
+      canUseTools: json['canUseTools'] ?? false,
+      canExportData: json['canExportData'] ?? false,
+      hasAdsFree: json['hasAdsFree'] ?? false,
+      hasPrioritySupport: json['hasPrioritySupport'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'canSearchErrors': canSearchErrors,
+      'canUseTools': canUseTools,
+      'canExportData': canExportData,
+      'hasAdsFree': hasAdsFree,
+      'hasPrioritySupport': hasPrioritySupport,
+    };
+  }
+}
+
 class PlanModel {
   final String id;
   final String name;
@@ -27,6 +101,11 @@ class PlanModel {
   final String status;
   final String tier;
 
+  // New fields
+  final bool isFree;
+  final PlanPermissions permissions;
+  final PlanQuotas quotas;
+
   PlanModel({
     required this.id,
     required this.name,
@@ -39,7 +118,12 @@ class PlanModel {
     this.discount,
     this.status = 'active',
     this.tier = 'Basic',
-  });
+    bool? isFree,
+    PlanPermissions? permissions,
+    PlanQuotas? quotas,
+  }) : isFree = isFree ?? (price == 0),
+       permissions = permissions ?? const PlanPermissions(),
+       quotas = quotas ?? const PlanQuotas();
 
   factory PlanModel.fromJson(Map<String, dynamic> json) {
     double parseDouble(dynamic value) {
@@ -49,7 +133,7 @@ class PlanModel {
       return 0.0;
     }
 
-    // Parse features (handle legacy list of objects if any, though Web Admin saves strings)
+    // Parse features
     List<String> featuresList = [];
     if (json['features'] is List) {
       featuresList = (json['features'] as List)
@@ -62,10 +146,12 @@ class PlanModel {
           .toList();
     }
 
+    final price = parseDouble(json['price']);
+
     return PlanModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Gói dịch vụ',
-      price: parseDouble(json['price']),
+      price: price,
       billingCycle: json['billingCycle']?.toString() ?? 'monthly',
       description: json['description']?.toString() ?? '',
       features: featuresList,
@@ -76,6 +162,17 @@ class PlanModel {
       discount: json['discount'] != null ? parseDouble(json['discount']) : null,
       status: json['status']?.toString() ?? 'active',
       tier: json['tier']?.toString() ?? 'Basic',
+      isFree: json['isFree'] ?? (price == 0),
+      permissions: PlanPermissions.fromJson(
+        json['permissions'] != null
+            ? Map<String, dynamic>.from(json['permissions'])
+            : null,
+      ),
+      quotas: PlanQuotas.fromJson(
+        json['quotas'] != null
+            ? Map<String, dynamic>.from(json['quotas'])
+            : null,
+      ),
     );
   }
 

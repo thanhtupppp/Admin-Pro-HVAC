@@ -2,13 +2,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants/app_colors.dart';
 import '../home/models/error_code_model.dart';
 import 'search_repository.dart';
 import 'search_history_repository.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../home/providers/dashboard_provider.dart';
+import '../subscription/services/quota_service.dart';
+import '../subscription/services/permissions_service.dart';
+import '../subscription/data/plan_model.dart';
+import '../subscription/data/plan_repository.dart';
+import '../subscription/data/user_quota_model.dart';
+import '../../shared/widgets/quota_indicator.dart';
+import '../../core/services/ad_service.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -29,12 +36,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _selectedBrand = '';
   String _selectedCategory = '';
 
+  // Quota & Permissions
+  QuotaService? _quotaService;
+  PermissionsService? _permissionsService;
+  PlanModel? _userPlan;
+  bool _isInitializing = true;
+
   @override
   void initState() {
     super.initState();
+    _initializeQuotaServices();
     _loadHistory();
     // Load initial suggestions (e.g., popular or recent)
     _performSearch('');
+  }
+
+  Future<void> _initializeQuotaServices() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _isInitializing = false);
+      return;
+    }
+
+    final planRepo = PlanRepository();
+    final plan = await planRepo.getUserPlan(user.uid);
+
+    if (plan != null) {
+      setState(() {
+        _userPlan = plan;
+        _quotaService = QuotaService(
+          userId: user.uid,
+          dailyLimit: plan.quotas.dailyErrorSearchLimit ?? 999999,
+        );
+        _permissionsService = PermissionsService(plan);
+        _isInitializing = false;
+      });
+
+      // Preload ad for Free users
+      if (plan.isFree) {
+        AdService().loadRewardedAd();
+      }
+    } else {
+      setState(() => _isInitializing = false);
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -102,6 +146,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _performSearch(String query) async {
+    // Check quota BEFORE searching (for non-empty queries)
+    if (query.isNotEmpty &&
+        _quotaService != null &&
+        _permissionsService != null) {
+      final canSearch = await _permissionsService!.canPerformErrorSearch(
+        _quotaService!,
+      );
+
+      if (!canSearch) {
+        // Show quota exhausted dialog
+        if (mounted) {
+          final quota = await _quotaService!.getTodayQuota();
+          _showQuotaExhaustedDialog(quota);
+        }
+        return; // Don't perform search
+      }
+    }
+
     setState(() => _isLoading = true);
     try {
       final results = await _repository.searchErrors(
@@ -114,6 +176,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           _results = results;
           _isLoading = false;
         });
+
+        // Consume quota (only for non-empty queries AND Free users)
+        if (query.isNotEmpty &&
+            _quotaService != null &&
+            _userPlan?.isFree == true) {
+          await _quotaService!.consumeErrorSearch();
+        }
+
         if (query.isNotEmpty) {
           _historyRepository.addQuery(query).then((_) => _loadHistory());
         }
@@ -121,6 +191,40 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showQuotaExhaustedDialog(UserQuota quota) {
+    _permissionsService!.showQuotaExhaustedDialog(
+      context,
+      used: quota.errorSearchesUsed,
+      limit: quota.totalLimit,
+      onWatchAd: () async {
+        final success = await AdService().showRewardedAd(
+          onUserEarnedReward: () async {
+            await _quotaService!.rewardFromAd();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🎁 +1 lượt tra từ quảng cáo!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          },
+        );
+
+        if (!success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quảng cáo chưa sẵn sàng, thử lại sau'),
+            ),
+          );
+        }
+      },
+      onUpgrade: () {
+        context.push('/subscription');
+      },
+    );
   }
 
   void _onBrandFilter(String brand) {
@@ -168,9 +272,46 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
 
+            // Quota Indicator for Free Users
+            if (_userPlan?.isFree == true && _quotaService != null)
+              StreamBuilder<UserQuota>(
+                stream: _quotaService!.watchTodayQuota(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const SizedBox.shrink();
+
+                  return QuotaIndicator(
+                    quota: snapshot.data!,
+                    onWatchAd: () async {
+                      final success = await AdService().showRewardedAd(
+                        onUserEarnedReward: () async {
+                          await _quotaService!.rewardFromAd();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('🎁 +1 lượt tra từ quảng cáo!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                      );
+
+                      if (!success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Quảng cáo chưa sẵn sàng'),
+                          ),
+                        );
+                      }
+                    },
+                    onUpgrade: () => context.push('/subscription'),
+                  );
+                },
+              ),
+
             // 2. Scrollable Content
             Expanded(
-              child: _isLoading
+              child: _isInitializing || _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
                         color: AppColors.primary,

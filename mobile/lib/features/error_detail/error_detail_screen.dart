@@ -8,19 +8,36 @@ import '../video/video_player_screen.dart';
 import '../troubleshoot/troubleshoot_screen.dart';
 import '../saved/providers/saved_provider.dart';
 import '../history/providers/history_provider.dart';
+import '../../core/services/ad_service.dart';
+import '../../shared/widgets/ad_banner_widget.dart';
 
-class ErrorDetailScreen extends ConsumerWidget {
+class ErrorDetailScreen extends ConsumerStatefulWidget {
   final ErrorCode errorCode;
 
   const ErrorDetailScreen({super.key, required this.errorCode});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Auto-add to history when viewing details
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(historyNotifierProvider.notifier).addToHistory(errorCode.id);
-    });
+  ConsumerState<ErrorDetailScreen> createState() => _ErrorDetailScreenState();
+}
 
+class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Auto-add to history
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(historyNotifierProvider.notifier)
+          .addToHistory(widget.errorCode.id);
+
+      // Try show interstitial
+      AdService().showInterstitialIfEligible();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final errorCode = widget.errorCode;
     final savedIdsAsync = ref.watch(savedIdsProvider);
     final isSaved = savedIdsAsync.value?.contains(errorCode.id) ?? false;
 
@@ -134,8 +151,18 @@ class ErrorDetailScreen extends ConsumerWidget {
                     ],
 
                     // 5. Videos (YouTube)
-                    if (errorCode.videos.isNotEmpty)
+                    if (widget.errorCode.videos.isNotEmpty)
                       _buildVideosSection(context),
+
+                    // Ad Banner
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: AdBannerWidget(placement: AdPlacement.detail),
+                      ),
+                    ),
+
+                    const Gap(80),
                   ],
                 ),
               ),
@@ -151,7 +178,7 @@ class ErrorDetailScreen extends ConsumerWidget {
     return Column(
       children: [
         Text(
-          errorCode.code,
+          widget.errorCode.code,
           style: const TextStyle(
             fontSize: 80,
             fontWeight: FontWeight.w900,
@@ -168,7 +195,7 @@ class ErrorDetailScreen extends ConsumerWidget {
             border: Border.all(color: Colors.white10),
           ),
           child: Text(
-            "${errorCode.brand} • ${errorCode.model}",
+            "${widget.errorCode.brand} • ${widget.errorCode.model}",
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.bold,
@@ -183,14 +210,14 @@ class ErrorDetailScreen extends ConsumerWidget {
     return SizedBox(
       height: 200,
       child: PageView.builder(
-        itemCount: errorCode.images.length,
+        itemCount: widget.errorCode.images.length,
         itemBuilder: (context, index) {
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               image: DecorationImage(
-                image: NetworkImage(errorCode.images[index]),
+                image: NetworkImage(widget.errorCode.images[index]),
                 fit: BoxFit.cover,
               ),
               border: Border.all(
@@ -211,7 +238,7 @@ class ErrorDetailScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    "Hình ${index + 1}/${errorCode.images.length}",
+                    "Hình ${index + 1}/${widget.errorCode.images.length}",
                     style: const TextStyle(color: Colors.white, fontSize: 10),
                   ),
                 ),
@@ -333,7 +360,8 @@ class ErrorDetailScreen extends ConsumerWidget {
           ],
         ),
         const Gap(12),
-        ...errorCode.steps.asMap().entries.map((entry) {
+        const Gap(12),
+        ...widget.errorCode.steps.asMap().entries.map((entry) {
           final idx = entry.key + 1;
           final step = entry.value;
           return Padding(
@@ -410,7 +438,8 @@ class ErrorDetailScreen extends ConsumerWidget {
           ],
         ),
         const Gap(12),
-        ...errorCode.videos.asMap().entries.map((entry) {
+        const Gap(12),
+        ...widget.errorCode.videos.asMap().entries.map((entry) {
           final idx = entry.key + 1;
           final videoUrl = entry.value;
           final videoId = _getYouTubeVideoId(videoUrl);
@@ -516,7 +545,8 @@ class ErrorDetailScreen extends ConsumerWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => TroubleshootScreen(errorCode: errorCode),
+                builder: (context) =>
+                    TroubleshootScreen(errorCode: widget.errorCode),
               ),
             );
           },

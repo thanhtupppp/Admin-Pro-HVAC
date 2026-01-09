@@ -1,0 +1,103 @@
+{
+  "servicePlans": [
+    {
+      "id": "free",
+      "name": "Free",
+      "price": 0,
+      "billingCycle": "monthly",
+      "description": "Gói miễn phí cho người dùng mới",
+      "features": [
+        "5 lượt tra mã lỗi/ngày",
+        "Xem quảng cáo để nhận thêm lượt",
+        "Hỗ trợ cơ bản",
+        "Hiển thị quảng cáo"
+      ],
+      "limits": {
+        "maxUsers": 1,
+        "maxErrorCodes": 100,
+        "aiQuota": 0
+      },
+      "permissions": {
+        "canSearchErrors": true,
+        "canUseTools": false,
+        "canExportData": false,
+        "hasAdsFree": false,
+        "hasPrioritySupport": false
+      },
+      "quotas": {
+        "dailyErrorSearchLimit": 5,
+        "hasAdsRewards": true
+      },
+      "status": "active",
+      "tier": "Free",
+      "isFree": true,
+      "isPopular": false
+    },
+    {
+      "id": "basic",
+      "name": "Basic",
+      "price": 49000,
+      "billingCycle": "monthly",
+      "description": "Gói cơ bản cho thợ cá nhân",
+      "features": [
+        "Tra mã lỗi không giới hạn",
+        "Sử dụng toàn bộ công cụ",
+        "Không quảng cáo",
+        "Hỗ trợ ưu tiên"
+      ],
+      "limits": {
+        "maxUsers": 1,
+        "maxErrorCodes": 1000,
+        "aiQuota": 100
+      },
+      "permissions": {
+        "canSearchErrors": true,
+        "canUseTools": true,
+        "canExportData": true,
+        "hasAdsFree": true,
+        "hasPrioritySupport": true
+      },
+      "quotas": {
+        "dailyErrorSearchLimit": null,
+        "hasAdsRewards": false
+      },
+      "status": "active",
+      "tier": "Basic",
+      "isFree": false,
+      "isPopular": true
+    },
+    {
+      "id": "premium",
+      "name": "Premium",
+      "price": 99000,
+      "billingCycle": "monthly",
+      "description": "Gói cao cấp cho team nhỏ",
+      "features": [
+        "Tất cả tính năng Basic",
+        "AI Ops Dashboard",
+        "Export dữ liệu",
+        "Quản lý nhiều thợ"
+      ],
+      "limits": {
+        "maxUsers": 5,
+        "maxErrorCodes": 5000,
+        "aiQuota": 500
+      },
+      "permissions": {
+        "canSearchErrors": true,
+        "canUseTools": true,
+        "canExportData": true,
+        "hasAdsFree": true,
+        "hasPrioritySupport": true
+      },
+      "quotas": {
+        "dailyErrorSearchLimit": null,
+        "hasAdsRewards": false
+      },
+      "status": "active",
+      "tier": "Premium",
+      "isFree": false,
+      "isPopular": false
+    }
+  ]
+}

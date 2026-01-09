@@ -118,6 +118,8 @@ class AuthService {
         'username': username,
         'role': 'user',
         'status': 'active',
+        'plan': 'free', // Auto-assign Free plan
+        'planExpiresAt': null, // Free plan never expires
         'createdAt': DateTime.now().toIso8601String(),
         'lastLogin': DateTime.now().toIso8601String(),
       });

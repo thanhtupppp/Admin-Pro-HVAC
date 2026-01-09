@@ -1,44 +1,115 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'plan_model.dart';
 
 class PlanRepository {
   final FirebaseFirestore _firestore;
 
-  PlanRepository(this._firestore);
+  PlanRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  Future<List<PlanModel>> getPlans() async {
+  /// Get all available plans
+  Future<List<PlanModel>> getAllPlans() async {
     try {
       final snapshot = await _firestore
-          .collection('servicePlans') // Updated collection name
+          .collection('servicePlans')
           .where('status', isEqualTo: 'active')
           .get();
 
-      final plans = snapshot.docs.map((doc) {
+      return snapshot.docs.map((doc) {
         final data = doc.data();
-        data['id'] = doc.id;
-        return PlanModel.fromJson(data);
+        return PlanModel.fromJson({...data, 'id': doc.id});
       }).toList();
-
-      // Sort in memory to avoid index requirement
-      plans.sort((a, b) => a.price.compareTo(b.price));
-
-      return plans;
-    } catch (e, stack) {
-      // ignore: avoid_print
-      print('Error fetching plans: $e');
-      // ignore: avoid_print
-      print(stack);
+    } catch (e) {
+      debugPrint('❌ Error fetching plans: $e');
       return [];
     }
   }
+
+  /// Get a specific plan by ID
+  Future<PlanModel?> getPlanById(String planId) async {
+    try {
+      final doc = await _firestore.collection('servicePlans').doc(planId).get();
+
+      if (!doc.exists) {
+        debugPrint('⚠️ Plan not found: $planId');
+        return null;
+      }
+
+      final data = doc.data()!;
+      return PlanModel.fromJson({...data, 'id': doc.id});
+    } catch (e) {
+      debugPrint('❌ Error fetching plan $planId: $e');
+      return null;
+    }
+  }
+
+  /// Get user's current plan
+  Future<PlanModel?> getUserPlan(String userId) async {
+    try {
+      // Get user document
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+
+      if (!userDoc.exists) {
+        debugPrint('⚠️ User not found: $userId');
+        return null;
+      }
+
+      final userData = userDoc.data()!;
+      final planId = userData['plan'] as String? ?? 'free';
+
+      // Fetch the plan
+      return await getPlanById(planId);
+    } catch (e) {
+      debugPrint('❌ Error fetching user plan: $e');
+      return null;
+    }
+  }
+
+  /// Update user's plan
+  Future<void> updateUserPlan(String userId, String planId) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'plan': planId,
+        'planUpdatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('✅ Updated user plan to: $planId');
+    } catch (e) {
+      debugPrint('❌ Error updating user plan: $e');
+      rethrow;
+    }
+  }
+
+  /// Stream all plans (for real-time updates)
+  Stream<List<PlanModel>> watchAllPlans() {
+    return _firestore
+        .collection('servicePlans')
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return PlanModel.fromJson({...data, 'id': doc.id});
+          }).toList();
+        });
+  }
+
+  /// Stream user's plan (for real-time updates)
+  Stream<PlanModel?> watchUserPlan(String userId) {
+    return _firestore.collection('users').doc(userId).snapshots().asyncMap((
+      userDoc,
+    ) async {
+      if (!userDoc.exists) return null;
+
+      final userData = userDoc.data()!;
+      final planId = userData['plan'] as String? ?? 'free';
+
+      return await getPlanById(planId);
+    });
+  }
+
+  /// Get Free plan (fallback)
+  Future<PlanModel?> getFreePlan() async {
+    return await getPlanById('free');
+  }
 }
-
-final planRepositoryProvider = Provider<PlanRepository>((ref) {
-  return PlanRepository(FirebaseFirestore.instance);
-});
-
-final plansProvider = FutureProvider<List<PlanModel>>((ref) async {
-  final repo = ref.watch(planRepositoryProvider);
-  return repo.getPlans();
-});

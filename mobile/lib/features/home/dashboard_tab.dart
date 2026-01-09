@@ -11,6 +11,7 @@ import 'widgets/quick_action_grid.dart';
 import 'widgets/stats_card.dart';
 import 'widgets/recent_error_card.dart';
 import 'widgets/common_error_item.dart';
+import '../../shared/widgets/ad_banner_widget.dart';
 
 class DashboardTab extends ConsumerStatefulWidget {
   const DashboardTab({super.key});
@@ -244,6 +245,16 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                     padding: EdgeInsets.all(20),
                     child: Text('Lỗi: $err'),
                   ),
+                ),
+              ),
+            ),
+
+            // 6. Ad Banner
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: AdBannerWidget(placement: AdPlacement.home),
                 ),
               ),
             ),

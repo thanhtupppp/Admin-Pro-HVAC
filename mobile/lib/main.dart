@@ -9,6 +9,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/config/firebase_options.dart';
 import 'core/services/onboarding_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/ad_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/splash/welcome_screen.dart';
 import 'features/splash/onboarding_screen.dart';
@@ -47,6 +48,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize AdService
+  await AdService.initialize();
 
   // Initialize Firebase Crashlytics
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;

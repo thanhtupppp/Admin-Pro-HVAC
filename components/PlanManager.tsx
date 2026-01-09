@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/firebaseConfig';
 import { planService } from '../services/planService';
-import { collection, onSnapshot, query, where, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 export interface ServicePlan {
   id: string;
@@ -18,7 +18,21 @@ export interface ServicePlan {
   isPopular?: boolean;
   description?: string;
   discount?: number; // For annual billing
+  tier?: string;
+  isFree?: boolean;
+  permissions?: {
+    canSearchErrors: boolean;
+    canUseTools: boolean;
+    canExportData: boolean;
+    hasAdsFree: boolean;
+    hasPrioritySupport: boolean;
+  };
+  quotas?: {
+    dailyErrorSearchLimit: number | null; // null = unlimited
+    hasAdsRewards: boolean;
+  };
 }
+
 
 const PlanManager: React.FC = () => {
   const [plans, setPlans] = useState<ServicePlan[]>([]);
@@ -59,7 +73,20 @@ const PlanManager: React.FC = () => {
         maxErrorCodes: 10,
         aiQuota: 100
       },
-      status: 'active'
+      status: 'active',
+      tier: 'Basic',
+      isFree: false,
+      permissions: {
+        canSearchErrors: true,
+        canUseTools: true,
+        canExportData: false,
+        hasAdsFree: false,
+        hasPrioritySupport: false,
+      },
+      quotas: {
+        dailyErrorSearchLimit: 10,
+        hasAdsRewards: false,
+      }
     });
   };
 
@@ -92,6 +119,108 @@ const PlanManager: React.FC = () => {
     }
   };
 
+  const seedDefaultPlans = async () => {
+    if (!confirm('Seed 3 plans mặc định (Free, Basic, Premium)? Data cũ sẽ bị ghi đè.')) return;
+
+    const defaultPlans: Omit<ServicePlan, 'id'>[] = [
+      {
+        name: 'Free',
+        price: 0,
+        billingCycle: 'monthly',
+        description: 'Gói miễn phí cho người dùng mới',
+        features: [
+          '5 lượt tra mã lỗi/ngày',
+          'Xem quảng cáo để nhận thêm lượt',
+          'Hỗ trợ cơ bản',
+          'Hiển thị quảng cáo'
+        ],
+        limits: { maxUsers: 1, maxErrorCodes: 100, aiQuota: 0 },
+        permissions: {
+          canSearchErrors: true,
+          canUseTools: false,
+          canExportData: false,
+          hasAdsFree: false,
+          hasPrioritySupport: false,
+        },
+        quotas: {
+          dailyErrorSearchLimit: 5,
+          hasAdsRewards: true,
+        },
+        status: 'active',
+        tier: 'Free',
+        isFree: true,
+        isPopular: false,
+      },
+      {
+        name: 'Basic',
+        price: 49000,
+        billingCycle: 'monthly',
+        description: 'Gói cơ bản cho thợ cá nhân',
+        features: [
+          'Tra mã lỗi không giới hạn',
+          'Sử dụng toàn bộ công cụ',
+          'Không quảng cáo',
+          'Hỗ trợ ưu tiên'
+        ],
+        limits: { maxUsers: 1, maxErrorCodes: 1000, aiQuota: 100 },
+        permissions: {
+          canSearchErrors: true,
+          canUseTools: true,
+          canExportData: true,
+          hasAdsFree: true,
+          hasPrioritySupport: true,
+        },
+        quotas: {
+          dailyErrorSearchLimit: null, // unlimited
+          hasAdsRewards: false,
+        },
+        status: 'active',
+        tier: 'Basic',
+        isFree: false,
+        isPopular: true,
+      },
+      {
+        name: 'Premium',
+        price: 99000,
+        billingCycle: 'monthly',
+        description: 'Gói cao cấp cho team nhỏ',
+        features: [
+          'Tất cả tính năng Basic',
+          'AI Ops Dashboard',
+          'Export dữ liệu',
+          'Quản lý nhiều thợ'
+        ],
+        limits: { maxUsers: 5, maxErrorCodes: 5000, aiQuota: 500 },
+        permissions: {
+          canSearchErrors: true,
+          canUseTools: true,
+          canExportData: true,
+          hasAdsFree: true,
+          hasPrioritySupport: true,
+        },
+        quotas: {
+          dailyErrorSearchLimit: null,
+          hasAdsRewards: false,
+        },
+        status: 'active',
+        tier: 'Premium',
+        isFree: false,
+        isPopular: false,
+      },
+    ];
+
+    try {
+      for (const plan of defaultPlans) {
+        const planId = plan.name.toLowerCase();
+        await setDoc(doc(db, 'servicePlans', planId), plan);
+      }
+      alert('✅ Đã seed 3 plans mặc định!');
+    } catch (error) {
+      console.error('Seed error:', error);
+      alert('❌ Lỗi khi seed plans');
+    }
+  };
+
   const getDiscountedPrice = (plan: ServicePlan) => {
     if (showAnnual && plan.discount) {
       return plan.price * 12 * (1 - plan.discount / 100);
@@ -107,13 +236,22 @@ const PlanManager: React.FC = () => {
           <h1 className="text-2xl font-bold text-white">Quản lý Gói Dịch Vụ</h1>
           <p className="text-text-secondary text-sm mt-1">Cấu hình pricing và tính năng cho từng gói</p>
         </div>
-        <button
-          onClick={handleCreatePlan}
-          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-xl flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          Tạo gói mới
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={seedDefaultPlans}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">database</span>
+            Seed Plans
+          </button>
+          <button
+            onClick={handleCreatePlan}
+            className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-xl flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            Tạo gói mới
+          </button>
+        </div>
       </div>
 
       {/* Billing Toggle */}
