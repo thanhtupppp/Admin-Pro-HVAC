@@ -40,6 +40,7 @@ import 'features/support/presentation/create_feedback_screen.dart';
 import 'features/support/presentation/support_detail_screen.dart';
 import 'features/support/data/feedback_model.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
+import 'features/community/community_chat_screen.dart';
 
 /// Background message handler (must be top-level function)
 @pragma('vm:entry-point')
@@ -163,6 +164,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/forgot-password',
       builder: (context, state) => const ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/community-chat',
+      builder: (context, state) => const CommunityChatScreen(),
     ),
 
     // Stateful Nested Shell

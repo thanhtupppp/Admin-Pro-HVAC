@@ -343,28 +343,30 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
                 onPressed: () => context.pop(),
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
               ),
-              Column(
-                children: [
-                  Text(
-                    'MÃ LỖI ${errorCode.code}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'MÃ LỖI ${errorCode.code}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                      ),
                     ),
-                  ),
-                  Text(
-                    errorCode.title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                    Text(
+                      errorCode.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
               IconButton(
                 onPressed: () => context.pop(),
@@ -531,12 +533,15 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
         children: [
           const Icon(Icons.build, size: 16, color: AppColors.primary),
           const Gap(8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -557,12 +562,15 @@ class _TroubleshootScreenState extends ConsumerState<TroubleshootScreen> {
         children: [
           const Icon(Icons.memory, size: 16, color: Colors.blue),
           const Gap(8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.blue,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

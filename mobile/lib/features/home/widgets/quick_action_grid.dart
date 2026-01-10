@@ -38,12 +38,12 @@ class QuickActionGrid extends StatelessWidget {
           const SizedBox(width: 12),
           _buildActionItem(
             context,
-            icon: Icons.smart_toy_rounded,
-            label: 'AI Chat',
+            icon: Icons.forum_rounded,
+            label: 'Cộng đồng',
             color: Colors.purpleAccent,
             onTap: () {
               HapticFeedback.lightImpact();
-              // Navigate to AI
+              context.push('/community-chat');
             },
           ),
           const SizedBox(width: 12),

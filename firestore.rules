@@ -127,6 +127,13 @@ service cloud.firestore {
       allow read, update: if isSuperAdmin();
     }
 
+
+    // COMMUNITY MESSAGES Collection
+    match /community_messages/{messageId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
     // DEFAULT: Allow authenticated for dev
     match /{document=**} {
       allow read: if isAuthenticated(); // DEV MODE
