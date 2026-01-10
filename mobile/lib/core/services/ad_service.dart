@@ -255,6 +255,37 @@ class AdService {
     }
   }
 
+  /// Force show interstitial immediately (e.g. for Community Chat)
+  Future<void> showImmediateInterstitial() async {
+    if (!_config.enableAds) return;
+
+    if (_interstitialAd != null) {
+      await _interstitialAd!.show();
+      _interstitialAd = null;
+      // Preload next one
+      loadInterstitialAd();
+    } else {
+      // If not ready, try to load and show
+      await InterstitialAd.load(
+        adUnitId: interstitialAdUnitId,
+        request: const AdRequest(),
+        adLoadCallback: InterstitialAdLoadCallback(
+          onAdLoaded: (ad) {
+            ad.fullScreenContentCallback = FullScreenContentCallback(
+              onAdDismissedFullScreenContent: (ad) {
+                ad.dispose();
+              },
+            );
+            ad.show();
+          },
+          onAdFailedToLoad: (error) {
+            debugPrint('Immediate Interstitial failed to load: $error');
+          },
+        ),
+      );
+    }
+  }
+
   void dispose() {
     _rewardedAd?.dispose();
     _interstitialAd?.dispose();

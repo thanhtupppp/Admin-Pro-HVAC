@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../core/services/community_service.dart';
+import '../../core/services/ad_service.dart';
 
 class CommunityChatScreen extends StatefulWidget {
   const CommunityChatScreen({super.key});
@@ -21,6 +22,11 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
   void initState() {
     super.initState();
     timeago.setLocaleMessages('vi', timeago.ViMessages());
+
+    // Show Ad when entering
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AdService().showImmediateInterstitial();
+    });
   }
 
   void _sendMessage() {
