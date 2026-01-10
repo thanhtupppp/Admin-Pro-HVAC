@@ -21,8 +21,15 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   @override
   void initState() {
     super.initState();
-    _loadAd();
+    // Delay load to allow context to be ready (if using provider in future)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAd();
+    });
   }
+
+  // Helper to check premium status would require Consumer/Riverpod here
+  // For now, we'll let AdService load it, but ideally we shouldn't even load it.
+  // Converting this widget to ConsumerStatefulWidget is better.
 
   void _loadAd() {
     // Check global enable flag

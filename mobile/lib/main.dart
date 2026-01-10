@@ -10,12 +10,15 @@ import 'core/config/firebase_options.dart';
 import 'core/services/onboarding_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/ad_service.dart';
+import 'core/services/security_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/router/go_router_refresh_stream.dart';
 import 'features/splash/welcome_screen.dart';
 import 'features/splash/onboarding_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/signup_screen.dart';
 import 'features/auth/forgot_password_screen.dart';
+import 'features/auth/screens/locked_account_screen.dart';
 import 'features/home/dashboard_tab.dart';
 import 'features/profile/edit_profile_screen.dart';
 import 'features/profile/user_info_screen.dart';
@@ -70,6 +73,10 @@ void main() async {
   // Set navigator key for notification navigation
   NotificationService().setNavigatorKey(_rootNavigatorKey);
 
+  // Initialize Security Service
+  await SecurityService().initialize();
+  SecurityService().setNavigatorKey(_rootNavigatorKey);
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -106,6 +113,9 @@ final _shellNavigatorSettingsKey = GlobalKey<NavigatorState>(
 
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
+  refreshListenable: GoRouterRefreshStream(
+    FirebaseAuth.instance.authStateChanges(),
+  ),
   initialLocation: '/',
   redirect: (context, state) async {
     final onboardingService = OnboardingService();
@@ -146,6 +156,10 @@ final _router = GoRouter(
     ),
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/signup', builder: (context, state) => const SignupScreen()),
+    GoRoute(
+      path: '/locked',
+      builder: (context, state) => const LockedAccountScreen(),
+    ),
     GoRoute(
       path: '/forgot-password',
       builder: (context, state) => const ForgotPasswordScreen(),

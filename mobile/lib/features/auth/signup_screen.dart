@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import 'providers/auth_provider.dart';
 import 'widgets/custom_text_field.dart';
+import 'screens/legal_viewer_screen.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -305,32 +306,63 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
+                          // Default action if they tap outside links (toggle check)
                           setState(() {
                             _agreedToTerms = !_agreedToTerms;
                           });
                         },
                         child: RichText(
-                          text: const TextSpan(
-                            style: TextStyle(
+                          text: TextSpan(
+                            style: const TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 14,
                               height: 1.4,
                             ),
                             children: [
-                              TextSpan(text: 'Tôi đồng ý với '),
-                              TextSpan(
-                                text: 'Điều khoản sử dụng',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
+                              const TextSpan(text: 'Tôi đồng ý với '),
+                              WidgetSpan(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const LegalViewerScreen(
+                                              type: LegalType.terms,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Điều khoản sử dụng',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              TextSpan(text: ' và '),
-                              TextSpan(
-                                text: 'Chính sách bảo mật',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
+                              const TextSpan(text: ' và '),
+                              WidgetSpan(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const LegalViewerScreen(
+                                              type: LegalType.privacy,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Chính sách bảo mật',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],

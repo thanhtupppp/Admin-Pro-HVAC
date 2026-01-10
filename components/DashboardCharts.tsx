@@ -137,24 +137,40 @@ export const UserGrowthChart: React.FC<{ users: AdminUser[] }> = ({ users }) => 
 
 export const PlanDistributionChart: React.FC<{ users: AdminUser[] }> = ({ users }) => {
     const data = useMemo(() => {
-        let free = 0;
-        let premium = 0;
-        let internal = 0;
-
+        const distribution: Record<string, number> = {};
+        
         if (users && Array.isArray(users)) {
             users.forEach(u => {
-                const p = (u.plan || 'Free').toLowerCase();
-                if (p === 'premium') premium++;
-                else if (p === 'internal') internal++;
-                else free++;
+                // Normalize: Use the plan string as is, or default to 'Free'
+                // Capitalize first letter for display aesthetics if it's lowercase
+                let rawPlan = u.plan || 'Free';
+                // Simple capitalization
+                const planName = rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1).toLowerCase();
+                
+                if (distribution[planName]) {
+                    distribution[planName]++;
+                } else {
+                    distribution[planName] = 1;
+                }
             });
         }
 
-        return [
-            { name: 'Free', value: free, color: '#64748b' },
-            { name: 'Premium', value: premium, color: '#00ff88' },
-            { name: 'Internal', value: internal, color: '#6366f1' }
-        ].filter(d => d.value > 0);
+        const colors: Record<string, string> = {
+            'Free': '#64748b',
+            'Basic': '#3b82f6',
+            'Premium': '#00ff88',
+            'Enterprise': '#f59e0b',
+            'Internal': '#6366f1'
+        };
+        
+        // Fallback colors for unknown plans
+        const defaultColors = ['#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'];
+
+        return Object.entries(distribution).map(([name, value], index) => ({ 
+            name, 
+            value, 
+            color: colors[name] || defaultColors[index % defaultColors.length] 
+        }));
     }, [users]);
 
     return (

@@ -42,6 +42,19 @@ const UserManager: React.FC = () => {
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleToggleStatus = async (user: AdminUser) => {
+    const action = user.status === 'active' ? 'khóa' : 'mở khóa';
+    if (confirm(`Bạn có chắc muốn ${action} người dùng ${user.username}?`)) {
+      try {
+        const updatedUser = await userService.toggleStatus(user.id);
+        setUsers(users.map(u => u.id === user.id ? updatedUser : u));
+      } catch (error) {
+        console.error("Failed to toggle status", error);
+        alert('Lỗi khi cập nhật trạng thái');
+      }
+    }
+  };
+
   const handleDeleteUser = async (id: string) => {
     if (confirm('Bạn có chắc muốn xóa người dùng này?')) {
       try {
@@ -60,12 +73,16 @@ const UserManager: React.FC = () => {
       }
 
       try {
+          // Default password for new users? or they set it via email?
+          // For now, assuming auth logic handles it or it's a "create profile" call.
+          // Note: The original code didn't handle auth creation, just firestore doc. 
+          // We keep it as is.
           const createdUser = await userService.createUser({
               username: newUser.username,
               email: newUser.email,
               role: newUser.role,
-              status: newUser.status,
-              plan: newUser.plan
+              status: newUser.status as any,
+              plan: newUser.plan as any
           });
           setUsers([createdUser, ...users]);
           setIsAddUserModalOpen(false);
@@ -168,6 +185,15 @@ const UserManager: React.FC = () => {
                   {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '—'}
                 </td>
                 <td className="text-right">
+                  <button
+                    onClick={() => handleToggleStatus(user)}
+                    className="text-text-secondary hover:text-brand-primary transition-colors mr-2"
+                    title={user.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
+                  >
+                    <span className="material-symbols-outlined text-xl">
+                      {user.status === 'active' ? 'lock_open' : 'lock'}
+                    </span>
+                  </button>
                   <button
                     onClick={() => handleDeleteUser(user.id)}
                     className="text-text-secondary hover:text-status-error transition-colors"

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdConfig {
   final bool enableAds;
@@ -70,7 +71,18 @@ class AdService {
   static Future<void> initialize() async {
     await MobileAds.instance.initialize();
     await _instance._fetchConfig();
+    await _instance._loadViewCount();
     debugPrint('🎬 AdMob initialized with config');
+  }
+
+  Future<void> _loadViewCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    _detailViewCount = prefs.getInt('ad_detail_view_count') ?? 0;
+  }
+
+  Future<void> _saveViewCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('ad_detail_view_count', _detailViewCount);
   }
 
   Future<void> _fetchConfig() async {
@@ -215,21 +227,30 @@ class AdService {
     );
   }
 
-  /// Show Interstitial if frequency met
-  Future<void> showInterstitialIfEligible() async {
-    if (!_config.enableAds || !_config.showInterstitialOnDetail) return;
+  /// Show Interstitial if frequency met and user is NOT premium
+  Future<void> showInterstitialIfEligible({bool isPremium = false}) async {
+    // If ads disabled globally OR user is premium, don't show
+    if (!_config.enableAds || !_config.showInterstitialOnDetail || isPremium) {
+      return;
+    }
 
     _detailViewCount++;
-    if (_detailViewCount >= _config.interstitialFrequency) {
-      if (_interstitialAd == null) {
-        await loadInterstitialAd();
-        // Wait a tiny bit, but don't block user too long
-        await Future.delayed(const Duration(seconds: 1));
-      }
+    _saveViewCount(); // Persist count
 
+    // Check if threshold reached
+    if (_detailViewCount > _config.interstitialFrequency) {
       if (_interstitialAd != null) {
         _interstitialAd!.show();
-        _detailViewCount = 0; // Reset counter
+        // Do NOT reset counter to 0 here to enforce "every subsequent view"
+        // _detailViewCount = 0;
+      } else {
+        // Ad not ready, load for next time
+        await loadInterstitialAd();
+      }
+    } else if (_detailViewCount == _config.interstitialFrequency) {
+      // Preload when reaching threshold so it's ready for next view (which will exceed threshold)
+      if (_interstitialAd == null) {
+        await loadInterstitialAd();
       }
     }
   }

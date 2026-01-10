@@ -49,7 +49,14 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow read: if isAuthenticated(); // SIMPLIFIED for dev
       allow update: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId && 
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'plan', 'planExpiresAt']));
+        // Ensure role and plan and planExpiresAt are NEVER changed by user
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'plan', 'planExpiresAt']) &&
+        (
+           // Allow status change ONLY if it is keeping it same OR setting to 'locked'
+           (request.resource.data.status == resource.data.status) || 
+           (request.resource.data.status == 'locked')
+        )
+      );
       allow delete: if isSuperAdmin();
       
       // NOTIFICATIONS Subcollection
@@ -105,6 +112,19 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if isAuthenticated(); // SIMPLIFIED
       allow write: if isSuperAdmin();
+    }
+
+    // APPEALS Collection (Account Unlock Request)
+    match /appeals/{appealId} {
+      allow create: if isAuthenticated();
+      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isSuperAdmin();
+    }
+
+    // SUSPICIOUS ACTIVITIES Collection
+    match /suspicious_activities/{activityId} {
+      allow create: if isAuthenticated(); // Allow SecurityService to log
+      allow read, update: if isSuperAdmin();
     }
 
     // DEFAULT: Allow authenticated for dev

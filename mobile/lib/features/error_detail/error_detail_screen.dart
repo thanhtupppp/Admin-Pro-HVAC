@@ -4,12 +4,14 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../home/models/error_code_model.dart';
+import '../auth/providers/auth_provider.dart';
 import '../video/video_player_screen.dart';
 import '../troubleshoot/troubleshoot_screen.dart';
 import '../saved/providers/saved_provider.dart';
 import '../history/providers/history_provider.dart';
 import '../../core/services/ad_service.dart';
 import '../../shared/widgets/ad_banner_widget.dart';
+import '../../core/services/security_service.dart';
 
 class ErrorDetailScreen extends ConsumerStatefulWidget {
   final ErrorCode errorCode;
@@ -23,6 +25,9 @@ class ErrorDetailScreen extends ConsumerStatefulWidget {
 class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
   @override
   void initState() {
+    // Enable Sensitive Mode (Screenshot Detection)
+    SecurityService().setSensitive(true);
+
     super.initState();
     // Auto-add to history
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -30,9 +35,22 @@ class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
           .read(historyNotifierProvider.notifier)
           .addToHistory(widget.errorCode.id);
 
+      // Check premium status
+      final authState = ref.read(authProvider);
+      final isPremium =
+          authState.userData?['plan'] != 'Free' &&
+          authState.userData?['plan'] != null;
+
       // Try show interstitial
-      AdService().showInterstitialIfEligible();
+      AdService().showInterstitialIfEligible(isPremium: isPremium);
     });
+  }
+
+  @override
+  void dispose() {
+    // Disable Sensitive Mode
+    SecurityService().setSensitive(false);
+    super.dispose();
   }
 
   @override

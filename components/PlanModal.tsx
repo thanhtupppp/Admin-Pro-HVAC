@@ -8,7 +8,12 @@ interface PlanModalProps {
 }
 
 const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
-    const [formData, setFormData] = useState<Omit<Plan, 'id' | 'createdAt' | 'updatedAt'>>({
+    // Local state type uses PlanFeature objects for UI
+    type PlanFormData = Omit<Plan, 'id' | 'createdAt' | 'updatedAt' | 'features'> & {
+        features: PlanFeature[];
+    };
+
+    const [formData, setFormData] = useState<PlanFormData>({
         name: '',
         displayName: '',
         price: 0,
@@ -35,7 +40,7 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
                 billingCycle: plan.billingCycle,
                 tier: plan.tier || 'Premium',
                 description: plan.description,
-                features: plan.features || [], // Safe fallback
+                features: (plan.features || []).map(f => ({ label: f, enabled: true })), 
                 badge: plan.badge || '',
                 badgeColor: plan.badgeColor || 'primary',
                 popular: plan.popular || false,
@@ -74,12 +79,18 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
         setIsSubmitting(true);
 
         try {
+            // Convert UI features (objects) back to simple strings for storage
+            const submissionData = {
+                ...formData,
+                features: formData.features.filter(f => f.enabled).map(f => f.label)
+            };
+
             if (plan) {
                 // Update existing plan
-                await planService.updatePlan(plan.id, formData);
+                await planService.updatePlan(plan.id, submissionData);
             } else {
                 // Create new plan
-                await planService.createPlan(formData);
+                await planService.createPlan(submissionData);
             }
             onSave();
         } catch (error) {

@@ -219,19 +219,19 @@ const AdsSettings: React.FC = () => {
                             </label>
                             
                             <div className="p-3 bg-background-dark rounded-xl border border-border-dark">
-                                <label className="text-[10px] font-bold text-text-secondary uppercase block mb-2">
-                                    Tần suất hiện Popup (Views)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={config.interstitialFrequency}
-                                        onChange={(e) => setConfig({ ...config, interstitialFrequency: parseInt(e.target.value) || 1 })}
-                                        className="w-20 bg-surface-dark border border-border-dark rounded-lg px-3 py-1 text-white text-center font-bold"
-                                    />
-                                    <span className="text-xs text-text-secondary">lần xem chi tiết hiện 1 quảng cáo</span>
-                                </div>
+                                    <label className="text-[10px] font-bold text-text-secondary uppercase block mb-2">
+                                        Số lượt xem miễn phí (Free threshold)
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={config.interstitialFrequency}
+                                            onChange={(e) => setConfig({ ...config, interstitialFrequency: parseInt(e.target.value) || 0 })}
+                                            className="w-20 bg-surface-dark border border-border-dark rounded-lg px-3 py-1 text-white text-center font-bold"
+                                        />
+                                        <span className="text-xs text-text-secondary">lần xem đầu tiên, sau đó sẽ luôn hiện QC</span>
+                                    </div>
                             </div>
                         </div>
                     </div>

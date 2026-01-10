@@ -19,6 +19,9 @@ import FeedbackManager from './components/FeedbackManager';
 import { PushNotificationManager } from './components/PushNotificationManager';
 import Login from './components/Login';
 import SystemUpdate from './components/SystemUpdate';
+import SecurityLogs from './components/SecurityLogs'; // New
+import AppealsManager from './components/AppealsManager'; // New
+import LegalSettings from './components/LegalSettings'; // New
 import { ViewType, ToastMessage } from './types';
 import { NAV_ITEMS } from './constants';
 import { auth } from './services/firebaseConfig';
@@ -141,6 +144,12 @@ const App: React.FC = () => {
         return <FeedbackManager />;
       case ViewType.PUSH_NOTIFICATIONS:
         return <PushNotificationManager />;
+      case ViewType.SECURITY_LOGS:
+        return <SecurityLogs />;
+      case ViewType.APPEALS_MANAGER:
+        return <AppealsManager />;
+      case ViewType.LEGAL_SETTINGS:
+        return <LegalSettings />;
       case ViewType.SETTINGS:
         return <Settings onSave={() => addToast("Cài đặt đã được cập nhật", "success")} />;
       default:

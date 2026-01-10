@@ -40,34 +40,26 @@ class AuthService {
           .get();
 
       if (userDoc.docs.isEmpty) {
-        await _auth.signOut();
+        // Allow session to create/sync data or handle in UI
+        // Even if data is missing, we don't sign out.
+      } else {
+        final userData = userDoc.docs.first.data();
+        // NOTE: We do NOT block locked users here.
+        // MainWrapper will redirect them to LockedScreen.
+
+        // Update last login time
+        await _firestore.collection('users').doc(userDoc.docs.first.id).update({
+          'lastLogin': DateTime.now().toIso8601String(),
+        });
+
         return AuthResult(
-          success: false,
-          error: 'Tài khoản không có quyền truy cập hệ thống.',
+          success: true,
+          user: credential.user,
+          userData: userData,
         );
       }
 
-      final userData = userDoc.docs.first.data();
-
-      // Check if account is locked
-      if (userData['status'] == 'locked') {
-        await _auth.signOut();
-        return AuthResult(
-          success: false,
-          error: 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.',
-        );
-      }
-
-      // Update last login time
-      await _firestore.collection('users').doc(userDoc.docs.first.id).update({
-        'lastLogin': DateTime.now().toIso8601String(),
-      });
-
-      return AuthResult(
-        success: true,
-        user: credential.user,
-        userData: userData,
-      );
+      return AuthResult(success: true, user: credential.user);
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
 
@@ -210,10 +202,8 @@ class AuthService {
       if (userDoc.exists) {
         final userData = userDoc.data()!;
 
-        if (userData['status'] == 'locked') {
-          await _auth.signOut();
-          return AuthResult(success: false, error: 'Tài khoản đã bị khóa.');
-        }
+        // NOTE: We do NOT block locked users here.
+        // MainWrapper will redirect them to LockedScreen.
 
         await _firestore.collection('users').doc(user.uid).update({
           'lastLogin': DateTime.now().toIso8601String(),

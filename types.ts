@@ -17,7 +17,10 @@ export enum ViewType {
   DOCUMENTS = 'DOCUMENTS',
   VIDEO_CMS = 'video_cms',
   FEEDBACK_MANAGER = 'feedback_manager',
-  PUSH_NOTIFICATIONS = 'push_notifications'
+  PUSH_NOTIFICATIONS = 'push_notifications',
+  SECURITY_LOGS = 'security_logs',
+  APPEALS_MANAGER = 'appeals_manager',
+  LEGAL_SETTINGS = 'legal_settings'
 }
 
 export interface SystemVersion {
@@ -104,6 +107,8 @@ export interface AdminUser {
   planExpiresAt?: string; // ISO Date String
   createdAt?: string; // ISO Date String
   activeSessions?: UserSession[]; // Track active devices
+  lockReason?: string | null;
+  unlockedAt?: any; // Timestamp or Date
 }
 
 export interface UserSession {

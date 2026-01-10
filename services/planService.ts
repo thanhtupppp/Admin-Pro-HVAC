@@ -35,6 +35,11 @@ export interface Plan {
     discount?: number;
 }
 
+export interface PlanFeature {
+    label: string;
+    enabled: boolean;
+}
+
 export type PricingPlan = Plan;
 
 export const planService = {

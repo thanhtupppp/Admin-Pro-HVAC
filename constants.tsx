@@ -86,6 +86,18 @@ export const MENU_GROUPS: MenuGroup[] = [
       { id: ViewType.SETTINGS, label: 'Cài đặt', icon: 'settings' },
     ],
   },
+  
+  // Security
+  {
+    id: 'security',
+    label: 'Bảo mật & Pháp lý',
+    icon: 'security',
+    items: [
+      { id: ViewType.SECURITY_LOGS, label: 'Nhật ký Vi phạm', icon: 'policy' },
+      { id: ViewType.APPEALS_MANAGER, label: 'Xử lý Khiếu nại', icon: 'gavel' },
+      { id: ViewType.LEGAL_SETTINGS, label: 'Điều khoản & Bảo mật', icon: 'description' },
+    ],
+  },
 ];
 
 // Legacy flat list (for backward compatibility - can remove later)
