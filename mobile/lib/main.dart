@@ -41,6 +41,10 @@ import 'features/support/presentation/support_detail_screen.dart';
 import 'features/support/data/feedback_model.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
 import 'features/community/community_chat_screen.dart';
+import 'features/tools/tools_screen.dart';
+import 'features/tools/screens/superheat_subcool_calculator.dart';
+import 'features/tools/screens/pt_chart_screen.dart';
+import 'features/tools/screens/placeholders.dart';
 
 /// Background message handler (must be top-level function)
 @pragma('vm:entry-point')
@@ -168,6 +172,24 @@ final _router = GoRouter(
     GoRoute(
       path: '/community-chat',
       builder: (context, state) => const CommunityChatScreen(),
+    ),
+    GoRoute(
+      path: '/tools',
+      builder: (context, state) => const ToolsScreen(),
+      routes: [
+        GoRoute(
+          path: 'superheat',
+          builder: (context, state) => const SuperheatSubcoolCalculator(),
+        ),
+        GoRoute(
+          path: 'pt-chart',
+          builder: (context, state) => const PTChartScreen(),
+        ),
+        GoRoute(
+          path: 'converter',
+          builder: (context, state) => const UnitConverterScreen(),
+        ),
+      ],
     ),
 
     // Stateful Nested Shell

@@ -16,12 +16,12 @@ class QuickActionGrid extends StatelessWidget {
         children: [
           _buildActionItem(
             context,
-            icon: Icons.qr_code_scanner_rounded,
-            label: 'Quét Lỗi',
+            icon: Icons.handyman_rounded,
+            label: 'Công cụ',
             color: Colors.blueAccent,
             onTap: () {
               HapticFeedback.lightImpact();
-              // Navigate to scan
+              context.push('/tools');
             },
           ),
           const SizedBox(width: 12),
