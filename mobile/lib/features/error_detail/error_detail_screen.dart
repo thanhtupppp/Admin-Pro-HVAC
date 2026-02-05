@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../home/models/error_code_model.dart';
 import '../auth/providers/auth_provider.dart';
@@ -29,11 +30,14 @@ class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
     SecurityService().setSensitive(true);
 
     super.initState();
-    // Auto-add to history
+    // Auto-add to history and increment view count
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
           .read(historyNotifierProvider.notifier)
           .addToHistory(widget.errorCode.id);
+
+      // Increment view count in Firestore
+      _incrementViewCount(widget.errorCode.id);
 
       // Check premium status
       final authState = ref.read(authProvider);
@@ -44,6 +48,21 @@ class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
       // Try show interstitial
       AdService().showInterstitialIfEligible(isPremium: isPremium);
     });
+  }
+
+  /// Increment view count for analytics
+  Future<void> _incrementViewCount(String errorId) async {
+    try {
+      // Use set with merge to handle case where views field doesn't exist
+      await FirebaseFirestore.instance
+          .collection('error_codes')
+          .doc(errorId)
+          .set({'views': FieldValue.increment(1)}, SetOptions(merge: true));
+      debugPrint('Successfully incremented view count for $errorId');
+    } catch (e) {
+      // Silently fail - view count is not critical
+      debugPrint('Failed to increment view count: $e');
+    }
   }
 
   @override

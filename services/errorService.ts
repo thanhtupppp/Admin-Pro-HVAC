@@ -9,7 +9,8 @@ import {
     deleteDoc,
     doc,
     getDoc,
-    updateDoc
+    updateDoc,
+    increment
 } from 'firebase/firestore';
 
 /**
@@ -158,5 +159,20 @@ export const errorService = {
             `Đã xóa mã lỗi: ${codeName}`,
             'danger'
         );
+    },
+
+    /**
+     * Increment view count for an error code
+     * Called when a user views the error detail on mobile app
+     */
+    incrementViews: async (id: string): Promise<void> => {
+        try {
+            const docRef = doc(db, 'error_codes', id);
+            await updateDoc(docRef, {
+                views: increment(1)
+            });
+        } catch (error) {
+            console.error('Failed to increment views:', error);
+        }
     }
 };

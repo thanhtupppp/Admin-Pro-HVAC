@@ -10,7 +10,7 @@ export function NotificationPreview({ title, body }: NotificationPreviewProps) {
   return (
     <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg">
+        <div className="shrink-0 p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg">
           <Bell className="w-6 h-6 text-blue-600 dark:text-blue-400" />
         </div>
         

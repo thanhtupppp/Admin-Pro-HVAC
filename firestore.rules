@@ -78,9 +78,19 @@ service cloud.firestore {
     }
 
     // ERROR CODES Collection
-    match /errors/{errorId} {
+    match /error_codes/{errorId} {
+      // Anyone can read error codes (public content)
       allow read: if true;
-      allow write: if isStaff();
+      
+      // Staff can write all fields
+      allow create, delete: if isStaff();
+      
+      // Staff can update all fields, OR authenticated users can ONLY update views field
+      allow update: if isStaff() || (
+        isAuthenticated() && 
+        // Only allow updating the 'views' field for analytics
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+      );
     }
 
     // TRANSACTIONS Collection

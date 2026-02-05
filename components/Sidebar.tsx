@@ -149,7 +149,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser 
       {currentUser && (
         <div className="p-4 border-t border-border-base">
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-bg-soft">
-            <div className="w-8 h-8 bg-brand-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-brand-primary/20 rounded-lg flex items-center justify-center shrink-0">
               <span className="text-xs font-bold text-brand-primary">
                 {currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </span>

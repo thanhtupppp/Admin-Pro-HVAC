@@ -102,7 +102,7 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-background-dark/90 backdrop-blur-xl" onClick={onClose}></div>
             <div
                 className="relative bg-surface-dark border border-border-dark rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
@@ -291,7 +291,7 @@ const PlanModal: React.FC<PlanModalProps> = ({ plan, onClose, onSave }) => {
                                     <button
                                         type="button"
                                         onClick={() => handleToggleFeature(index)}
-                                        className={`flex-shrink-0 ${feature.enabled ? 'text-green-500' : 'text-gray-600'}`}
+                                        className={`shrink-0 ${feature.enabled ? 'text-green-500' : 'text-gray-600'}`}
                                     >
                                         <span className="material-symbols-outlined text-[20px]">
                                             {feature.enabled ? 'check_circle' : 'cancel'}
