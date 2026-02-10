@@ -235,6 +235,7 @@ const SmartErrorImport: React.FC = () => {
                         <h2 className="text-xl font-bold text-white mb-6">Bước 2: Tải lên tài liệu</h2>
                         <div className="border-2 border-dashed border-border-dark rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:border-primary transition-colors cursor-pointer bg-background-dark/30 h-64 relative">
                             <input
+                                data-testid="file-upload-input"
                                 type="file"
                                 onChange={handleFileSelect}
                                 className="absolute inset-0 opacity-0 cursor-pointer"
