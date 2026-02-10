@@ -18,9 +18,12 @@ class AdConfig {
 
   AdConfig({
     this.enableAds = true,
-    this.androidRewardedId = 'ca-app-pub-3940256099942544/5224354917',
-    this.androidInterstitialId = 'ca-app-pub-3940256099942544/1033173712',
-    this.androidBannerId = 'ca-app-pub-3940256099942544/6300978111',
+    // Production Ad IDs (Android)
+    this.androidRewardedId =
+        'ca-app-pub-2362828741155079/9746295670', // Production Rewarded ID
+    this.androidInterstitialId = 'ca-app-pub-2362828741155079/1341093986',
+    this.androidBannerId = 'ca-app-pub-2362828741155079/3699762077',
+    // iOS - still test IDs (update when iOS version ready)
     this.iosRewardedId = 'ca-app-pub-3940256099942544/1712485313',
     this.iosInterstitialId = 'ca-app-pub-3940256099942544/4411468910',
     this.iosBannerId = 'ca-app-pub-3940256099942544/2934735716',
@@ -34,12 +37,12 @@ class AdConfig {
     return AdConfig(
       enableAds: map['enableAds'] ?? true,
       androidRewardedId:
-          map['androidRewardedId'] ?? 'ca-app-pub-3940256099942544/5224354917',
+          map['androidRewardedId'] ?? 'ca-app-pub-2362828741155079/9746295670',
       androidInterstitialId:
           map['androidInterstitialId'] ??
-          'ca-app-pub-3940256099942544/1033173712',
+          'ca-app-pub-2362828741155079/1341093986',
       androidBannerId:
-          map['androidBannerId'] ?? 'ca-app-pub-3940256099942544/6300978111',
+          map['androidBannerId'] ?? 'ca-app-pub-2362828741155079/3699762077',
       iosRewardedId:
           map['iosRewardedId'] ?? 'ca-app-pub-3940256099942544/1712485313',
       iosInterstitialId:

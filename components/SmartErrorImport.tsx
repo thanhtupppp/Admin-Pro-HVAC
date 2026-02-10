@@ -264,7 +264,7 @@ const SmartErrorImport: React.FC = () => {
                             disabled={!file || isAiProcessing}
                             className={`w-full py-4 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${isAiProcessing
                                 ? 'bg-gray-600 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/30'
+                                : 'bg-linear-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/30'
                                 }`}
                         >
                             {isAiProcessing ? (

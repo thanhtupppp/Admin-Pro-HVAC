@@ -59,8 +59,8 @@ dependencies:
   # URL Launcher (for opening videos)
   url_launcher: ^6.2.5
   
-  # YouTube Player (inline playback)
-  youtube_player_flutter: ^9.0.4
+  # YouTube Player (Iframe based - System WebView)
+  youtube_player_iframe: ^5.1.2
   flutter_screenshot_detect: ^0.1.7
   flutter_markdown: ^0.7.7+1
   permission_handler: ^12.0.1
@@ -77,6 +77,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
+  mocktail: ^1.0.4
+  build_runner: ^2.11.0
 
 flutter_launcher_icons:
   android: "launcher_icon"

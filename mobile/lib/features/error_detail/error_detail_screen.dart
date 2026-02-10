@@ -24,6 +24,9 @@ class ErrorDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
+  bool _hasWatchedAd = false;
+  bool _isLoadingAd = false;
+
   @override
   void initState() {
     // Enable Sensitive Mode (Screenshot Detection)
@@ -45,8 +48,20 @@ class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
           authState.userData?['plan'] != 'Free' &&
           authState.userData?['plan'] != null;
 
-      // Try show interstitial
-      AdService().showInterstitialIfEligible(isPremium: isPremium);
+      setState(() {
+        // Premium users bypass ad gate
+        _hasWatchedAd = isPremium;
+      });
+
+      // Preload rewarded ad for free users
+      if (!isPremium) {
+        AdService().loadRewardedAd();
+      }
+
+      // Try show interstitial (only if already passed ad gate)
+      if (isPremium) {
+        AdService().showInterstitialIfEligible(isPremium: isPremium);
+      }
     });
   }
 
@@ -62,6 +77,36 @@ class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
     } catch (e) {
       // Silently fail - view count is not critical
       debugPrint('Failed to increment view count: $e');
+    }
+  }
+
+  /// Show rewarded ad to unlock content
+  Future<void> _showRewardedAdToUnlock() async {
+    setState(() => _isLoadingAd = true);
+
+    final success = await AdService().showRewardedAd(
+      onUserEarnedReward: () {
+        setState(() {
+          _hasWatchedAd = true;
+        });
+      },
+      onAdDismissed: () {
+        setState(() => _isLoadingAd = false);
+      },
+    );
+
+    if (!success) {
+      setState(() => _isLoadingAd = false);
+      // Ad not available - allow access anyway (graceful degradation)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Quảng cáo không sẵn sàng. Bạn có thể xem nội dung.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        setState(() => _hasWatchedAd = true);
+      }
     }
   }
 
@@ -123,89 +168,206 @@ class _ErrorDetailScreenState extends ConsumerState<ErrorDetailScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Main content (blurred for free users until ad is watched)
+            Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 1. Images or Code Hero
+                        if (errorCode.images.isNotEmpty)
+                          _buildImageCarousel()
+                        else
+                          _buildHeroSection(),
+
+                        const Gap(24),
+                        const Divider(height: 1, color: Color(0xFF1E293B)),
+                        const Gap(24),
+
+                        // 2. Info Sections
+                        if (errorCode.symptom.isNotEmpty) ...[
+                          _buildInfoSection(
+                            'Triệu chứng',
+                            Icons.monitor_heart_outlined,
+                            errorCode.symptom,
+                          ),
+                          const Gap(24),
+                        ],
+
+                        if (errorCode.cause.isNotEmpty) ...[
+                          _buildInfoSection(
+                            'Nguyên nhân & Cách kiểm tra',
+                            Icons.search,
+                            errorCode.cause,
+                          ),
+                          const Gap(24),
+                        ],
+
+                        // 3. Components & Tools
+                        if (errorCode.components.isNotEmpty) ...[
+                          _buildTagsSection(
+                            'Linh kiện liên quan',
+                            Icons.extension,
+                            errorCode.components,
+                            Colors.blue,
+                          ),
+                          const Gap(24),
+                        ],
+
+                        if (errorCode.tools.isNotEmpty) ...[
+                          _buildTagsSection(
+                            'Dụng cụ cần thiết',
+                            Icons.build_circle,
+                            errorCode.tools,
+                            Colors.orange,
+                          ),
+                          const Gap(24),
+                        ],
+
+                        // 4. Repair Steps
+                        if (errorCode.steps.isNotEmpty) ...[
+                          _buildStepsSection(),
+                          const Gap(24),
+                        ],
+
+                        // 5. Videos (YouTube)
+                        if (widget.errorCode.videos.isNotEmpty)
+                          _buildVideosSection(context),
+
+                        // Ad Banner
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: AdBannerWidget(
+                              placement: AdPlacement.detail,
+                            ),
+                          ),
+                        ),
+
+                        const Gap(80),
+                      ],
+                    ),
+                  ),
+                ),
+                _buildBottomAction(context),
+              ],
+            ),
+
+            // Ad Gate Overlay for Free Users
+            if (!_hasWatchedAd) _buildAdGateOverlay(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build the ad gate overlay that blocks content for free users
+  Widget _buildAdGateOverlay() {
+    return Container(
+      color: AppColors.background.withValues(alpha: 0.95),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.lock_outline,
+                size: 64,
+                color: AppColors.primary,
+              ),
+              const Gap(24),
+              const Text(
+                'Xem quảng cáo để mở khóa nội dung',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Gap(12),
+              Text(
+                'Người dùng miễn phí cần xem một đoạn quảng cáo ngắn để truy cập hướng dẫn sửa chữa',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Gap(32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoadingAd ? null : _showRewardedAdToUnlock,
+                  icon: _isLoadingAd
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.play_circle_filled),
+                  label: Text(
+                    _isLoadingAd ? 'Đang tải...' : 'Xem quảng cáo',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const Gap(16),
+              TextButton(
+                onPressed: () => context.pop(),
+                child: Text(
+                  'Quay lại',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                ),
+              ),
+              const Gap(24),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    // 1. Images or Code Hero
-                    if (errorCode.images.isNotEmpty)
-                      _buildImageCarousel()
-                    else
-                      _buildHeroSection(),
-
-                    const Gap(24),
-                    const Divider(height: 1, color: Color(0xFF1E293B)),
-                    const Gap(24),
-
-                    // 2. Info Sections
-                    if (errorCode.symptom.isNotEmpty) ...[
-                      _buildInfoSection(
-                        'Triệu chứng',
-                        Icons.monitor_heart_outlined,
-                        errorCode.symptom,
-                      ),
-                      const Gap(24),
-                    ],
-
-                    if (errorCode.cause.isNotEmpty) ...[
-                      _buildInfoSection(
-                        'Nguyên nhân & Cách kiểm tra',
-                        Icons.search,
-                        errorCode.cause,
-                      ),
-                      const Gap(24),
-                    ],
-
-                    // 3. Components & Tools
-                    if (errorCode.components.isNotEmpty) ...[
-                      _buildTagsSection(
-                        'Linh kiện liên quan',
-                        Icons.extension,
-                        errorCode.components,
-                        Colors.blue,
-                      ),
-                      const Gap(24),
-                    ],
-
-                    if (errorCode.tools.isNotEmpty) ...[
-                      _buildTagsSection(
-                        'Dụng cụ cần thiết',
-                        Icons.build_circle,
-                        errorCode.tools,
-                        Colors.orange,
-                      ),
-                      const Gap(24),
-                    ],
-
-                    // 4. Repair Steps
-                    if (errorCode.steps.isNotEmpty) ...[
-                      _buildStepsSection(),
-                      const Gap(24),
-                    ],
-
-                    // 5. Videos (YouTube)
-                    if (widget.errorCode.videos.isNotEmpty)
-                      _buildVideosSection(context),
-
-                    // Ad Banner
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: AdBannerWidget(placement: AdPlacement.detail),
+                    const Icon(Icons.star, color: Colors.amber, size: 20),
+                    const Gap(8),
+                    Expanded(
+                      child: Text(
+                        'Nâng cấp Premium để bỏ qua quảng cáo',
+                        style: TextStyle(
+                          color: Colors.amber.withValues(alpha: 0.9),
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-
-                    const Gap(80),
                   ],
                 ),
               ),
-            ),
-            _buildBottomAction(context),
-          ],
+            ],
+          ),
         ),
       ),
     );

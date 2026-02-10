@@ -23,3 +23,47 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# Test coverage & output
+coverage/
+test-output.txt
+test-results.json
+test-results2.json
+test_results.json
+jest_output.txt
+login_test_output.txt
+
+# Regression & debug output
+regression_analysis.txt
+regression_output.txt
+verification_output.txt
+crash_analysis.txt
+debug_addjob.txt
+debug_addjob_2.txt
+fail_list.txt
+fail_summary.txt
+
+# Agent internal files
+.agent/.shared/
+.agent/logs/
+.agent/scripts/__pycache__/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Mobile build artifacts
+mobile/android/build/
+mobile/.dart_tool/
+mobile/build/
+mobile/mobile-test-output.txt
+
+# Misc temp files
+batch*_failures.txt
+bulk_import_test_output.txt

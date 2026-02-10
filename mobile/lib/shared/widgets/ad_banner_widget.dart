@@ -32,17 +32,31 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   // Converting this widget to ConsumerStatefulWidget is better.
 
   void _loadAd() {
+    debugPrint('📢 AdBanner: Attempting to load ad...');
+    debugPrint('📢 AdBanner: enableAds=${_adService.enableAds}');
+    debugPrint('📢 AdBanner: showBannerHome=${_adService.showBannerHome}');
+    debugPrint('📢 AdBanner: showBannerDetail=${_adService.showBannerDetail}');
+    debugPrint('📢 AdBanner: placement=${widget.placement}');
+    debugPrint('📢 AdBanner: bannerAdUnitId=${_adService.bannerAdUnitId}');
+
     // Check global enable flag
-    if (!_adService.enableAds) return;
+    if (!_adService.enableAds) {
+      debugPrint('❌ AdBanner: Ads disabled globally');
+      return;
+    }
 
     // Check placement-specific flag
     if (widget.placement == AdPlacement.home && !_adService.showBannerHome) {
+      debugPrint('❌ AdBanner: Home banner disabled');
       return;
     }
     if (widget.placement == AdPlacement.detail &&
         !_adService.showBannerDetail) {
+      debugPrint('❌ AdBanner: Detail banner disabled');
       return;
     }
+
+    debugPrint('✅ AdBanner: Loading ad with ID: ${_adService.bannerAdUnitId}');
 
     final bannerAd = BannerAd(
       adUnitId: _adService.bannerAdUnitId,
@@ -50,6 +64,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
       size: AdSize.banner,
       listener: BannerAdListener(
         onAdLoaded: (ad) {
+          debugPrint('✅ AdBanner: Ad loaded successfully!');
           if (mounted) {
             setState(() {
               _bannerAd = ad as BannerAd;
@@ -58,7 +73,9 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
           }
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('BannerAd failed to load: $error');
+          debugPrint(
+            '❌ AdBanner: Failed to load: ${error.message} (code: ${error.code})',
+          );
           ad.dispose();
         },
       ),
